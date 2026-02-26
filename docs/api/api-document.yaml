@@ -1,0 +1,1060 @@
+openapi: 3.0.3
+info:
+  title: Healthcare Threshold & Alert API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: User
+  - name: HealthRecord
+  - name: Threshold
+  - name: Alert
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: 회원가입
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: 로그인
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+  /users/me:
+    get:
+      tags:
+        - User
+      summary: 내 정보 조회
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      tags:
+        - User
+      summary: 회원 탈퇴(soft-delete)
+      description: 사용자 계정을 soft-delete 처리하며, 이후 로그인/토큰 재발급 불가
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /health-records:
+    get:
+      tags:
+        - HealthRecord
+      summary: 건강 측정 기록 목록 조회
+      parameters:
+        - $ref: "#/components/parameters/FromMeasuredAt"
+        - $ref: "#/components/parameters/ToMeasuredAt"
+        - $ref: "#/components/parameters/Type"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRecordListResponse"
+    post:
+      tags:
+        - HealthRecord
+      summary: 건강 측정 기록 생성
+      description:
+        "- 과거 시점(measuredAt)의 record를 입력해도 입력 시점(createdAt)의 현재 활성 threshold
+        기준으로 평가합니다.
+
+        - 평가 결과(violation)가 1개 이상이면 alert 1개를 생성합니다.
+
+        - violation/alert는 파생 데이터이며, threshold 삭제/수정은 기존 violation/alert를 자동으로 변경하지
+        않습니다.
+
+        "
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthRecordCreateRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRecordDetailResponse"
+  /health-records/{healthRecordId}:
+    get:
+      tags:
+        - HealthRecord
+      summary: 건강 측정 기록 단건 조회 (위반 내역 포함)
+      parameters:
+        - $ref: "#/components/parameters/HealthRecordId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRecordDetailResponse"
+      description:
+        " - 기록 상세의 violation 목록은 해당 record가 마지막으로 평가(evaluated_at)될 당시
+        적용된 threshold로 생성된 결과입니다.
+
+        - threshold가 삭제(soft delete)되어도 과거 violation은 유지되며, threshold_id로 조회 가능합니다.
+
+        "
+    patch:
+      tags:
+        - HealthRecord
+      summary: 건강 측정 기록 수정 (기존 alert soft-delete 후 재평가)
+      description: "- record는 생성(createdAt) 후 10분 이내에만 수정 가능
+
+        - 수정 시 해당 record로 생성된 alert/violation은 deleted_at=now()로 무효화(soft delete)
+
+        - 이후 현재 활성 threshold(threshold.deleted_at IS NULL) 기준으로 재평가하여 violation 재생성
+
+        - violation이 1개 이상이면 alert 1개를 재생성(health_record_id 단위)
+
+        - type에 맞는 필드 세트를 완성형으로 보내야 함(BP면 systolic, diastolic 같이). 아니면 400
+
+        "
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/HealthRecordId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthRecordUpdateRequest"
+            examples:
+              hr_ok:
+                value:
+                  measuredAt: "2026-02-25T12:00:00Z"
+                  bpm: 72
+              bp_ok:
+                value:
+                  measuredAt: "2026-02-25T12:00:00Z"
+                  systolic: 120
+                  diastolic: 80
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRecordDetailResponse"
+        "409":
+          description: 수정 가능 시간(10분)이 만료된 record입니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                example:
+                  value:
+                    code: EDIT_WINDOW_EXPIRED
+                    message: Record can only be edited within 10 minutes of creation.
+                    details:
+                      - field: healthRecordId
+                        reason: edit window expired
+        "400":
+          description: Bad Request (type 불일치/필수 필드 누락/검증 실패)
+          content:
+            application/json:
+              schema:
+                $ref: ""
+              examples:
+                bp_missing_field:
+                  value:
+                    code: INVALID_REQUEST
+                    message: BP record update requires both systolic and diastolic
+                    fieldErrors:
+                      - field: diastolic
+                        reason: required
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags:
+        - HealthRecord
+      summary: 건강 측정 기록 삭제 (연관 alert/violation soft-delete)
+      description:
+        "- MVP 정책: health_record 삭제 시 연관 alert/record_violation soft-delete
+
+        "
+      parameters:
+        - $ref: "#/components/parameters/HealthRecordId"
+      responses:
+        "204":
+          description: No Content
+  /thresholds:
+    get:
+      tags:
+        - Threshold
+      summary: Threshold 목록 조회
+      parameters:
+        - $ref: "#/components/parameters/Metric"
+        - $ref: "#/components/parameters/RuleType"
+        - $ref: "#/components/parameters/IncludeDeleted"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThresholdListResponse"
+      description: "- 기본적으로 삭제되지 않은 threshold만 반환합니다.
+
+        - include_deleted=true이면 deleted_at이 있는 threshold도 함께 반환합니다.
+
+        "
+    post:
+      tags:
+        - Threshold
+      summary: Threshold 생성 (확장형 rule_details)
+      description:
+        "- ruleType에 따라 ruleDetails(oneOf)가 달라짐(1.0에서는 range만 허용)
+
+        - 활성 threshold는 (userId, metric, ruleType) 기준으로 1개만 허용 (deleted_at IS NULL
+        기준)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThresholdCreateRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Threshold"
+        "409":
+          description: Unique constraint violation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /thresholds/{thresholdId}:
+    get:
+      tags:
+        - Threshold
+      summary: Threshold 단건 조회
+      parameters:
+        - $ref: "#/components/parameters/ThresholdId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Threshold"
+    patch:
+      tags:
+        - Threshold
+      summary: Threshold 수정(버전 생성)
+      parameters:
+        - $ref: "#/components/parameters/ThresholdId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThresholdUpdateRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Threshold"
+      description:
+        "- threshold 수정은 버전 방식으로 처리합니다.\n  1) 기존 threshold를 soft delete(threshold.deleted_at=now())\n\
+        \  2) 수정된 내용으로 새로운 threshold row를 생성하여 반환\n- 수정된 threshold는 향후 record 평가에만\
+        \ 적용됩니다.\n- 과거 alert/violation은 자동으로 재평가하지 않습니다.\n"
+    delete:
+      tags:
+        - Threshold
+      summary: Threshold 삭제(soft-delete)
+      description:
+        "- threshold 삭제는 soft delete(threshold.deleted_at=now()) 입니다.
+
+        - 삭제된 threshold는 향후 record 평가에서 제외됩니다.
+
+        - 해당 threshold로 과거에 생성된 alert/violation은 변경/삭제하지 않습니다(이벤트/평가 이력).
+
+        "
+      parameters:
+        - $ref: "#/components/parameters/ThresholdId"
+      responses:
+        "204":
+          description: No Content
+  /alerts:
+    get:
+      tags:
+        - Alert
+      summary: Alert 목록 조회 (is_silent=false AND is_deleted=false)
+      parameters:
+        - $ref: "#/components/parameters/UnreadOnly"
+        - $ref: "#/components/parameters/FromCreatedAt"
+        - $ref: "#/components/parameters/ToCreatedAt"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertListResponse"
+  /alerts/{alertId}:
+    get:
+      tags:
+        - Alert
+      summary: Alert 단건 조회, is_silent=true는 404로 취급
+      parameters:
+        - $ref: "#/components/parameters/AlertId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      tags:
+        - Alert
+      summary: Alert 읽음 처리
+      parameters:
+        - $ref: "#/components/parameters/AlertId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertMarkReadRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+    delete:
+      tags:
+        - Alert
+      summary: Alert 삭제(soft-delete)
+      description: "- 삭제는 deleted_at=now()로 처리
+
+        "
+      parameters:
+        - $ref: "#/components/parameters/AlertId"
+      responses:
+        "204":
+          description: No Content
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: 토큰 재발급 (Refresh Rotation)
+      description:
+        "- refresh_token이 유효하면 새 access_token과 새 refresh_token을 발급
+
+        - 기존 refresh_token은 revoked 처리(로테이션)"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: 로그아웃 (Refresh Token 폐기)
+      description: logout은 refresh token만으로 처리(access 인증 제거)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request (형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_format:
+                  value:
+                    code: INVALID_REQUEST
+                    message: refreshToken is required
+        "401":
+          description: Unauthorized (refresh token 무효/만료/폐기)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_token:
+                  value:
+                    code: INVALID_REFRESH_TOKEN
+                    message: Refresh token is invalid or expired
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    HealthRecordId:
+      name: healthRecordId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    ThresholdId:
+      name: thresholdId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    AlertId:
+      name: alertId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Type:
+      name: type
+      in: query
+      schema:
+        $ref: "#/components/schemas/HealthRecordType"
+    Metric:
+      name: metric
+      in: query
+      schema:
+        $ref: "#/components/schemas/Metric"
+    RuleType:
+      name: rule_type
+      in: query
+      schema:
+        $ref: "#/components/schemas/RuleType"
+    UnreadOnly:
+      name: unread_only
+      in: query
+      schema:
+        type: boolean
+        default: false
+    FromMeasuredAt:
+      name: from_measured_at
+      in: query
+      schema:
+        type: string
+        format: date-time
+    ToMeasuredAt:
+      name: to_measured_at
+      in: query
+      schema:
+        type: string
+        format: date-time
+    FromCreatedAt:
+      name: from_created_at
+      in: query
+      schema:
+        type: string
+        format: date-time
+    ToCreatedAt:
+      name: to_created_at
+      in: query
+      schema:
+        type: string
+        format: date-time
+    IncludeDeleted:
+      name: include_deleted
+      in: query
+      schema:
+        type: boolean
+        default: false
+      description: true면 soft-deleted(deleted_at not null) threshold도 포함
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Invalid request
+        fieldErrors:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldError"
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: measuredAt
+              reason:
+                type: string
+                example: must be ISO-8601 date-time
+      required:
+        - code
+        - message
+    FieldError:
+      type: object
+      additionalProperties: false
+      properties:
+        field:
+          type: string
+          example: diastolic
+        reason:
+          type: string
+          example: required
+      required:
+        - field
+        - reason
+    PageInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 0
+        size:
+          type: integer
+          example: 20
+        totalElements:
+          type: integer
+          example: 123
+        totalPages:
+          type: integer
+          example: 7
+        hasPrev:
+          type: boolean
+        hasNext:
+          type: boolean
+      required:
+        - page
+        - size
+        - totalElements
+        - totalPages
+        - hasPrev
+        - hasNext
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+      required:
+        - email
+        - password
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        user:
+          $ref: "#/components/schemas/User"
+        refreshToken:
+          type: string
+          description: 재발급/로그아웃에 사용. 원문 저장 금지(서버는 해시 저장)
+      required:
+        - accessToken
+        - user
+        - tokenType
+        - refreshToken
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - createdAt
+    HealthRecordType:
+      type: string
+      enum:
+        - HR
+        - BP
+    Metric:
+      type: string
+      enum:
+        - HR
+        - BP_SYS
+        - BP_DIA
+    RuleType:
+      type: string
+      enum:
+        - range
+    HealthRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        type:
+          $ref: "#/components/schemas/HealthRecordType"
+        measuredAt:
+          type: string
+          format: date-time
+          description: UTC
+        createdAt:
+          type: string
+          format: date-time
+          description: UTC
+        bpm:
+          type: integer
+          minimum: 1
+          maximum: 300
+          nullable: true
+          description: type=HR일 때 사용
+        systolic:
+          type: integer
+          minimum: 50
+          maximum: 300
+          nullable: true
+          description: type=BP일 때 사용
+        diastolic:
+          type: integer
+          minimum: 30
+          maximum: 200
+          nullable: true
+          description: type=BP일 때 사용
+        memo:
+          type: string
+          nullable: true
+          maxLength: 500
+      required:
+        - id
+        - userId
+        - type
+        - measuredAt
+        - createdAt
+      description: 단일 테이블 모델. type=HR이면 bpm 필수, type=BP이면 systolic/diastolic 필수
+    HealthRecordDetailResponse:
+      type: object
+      properties:
+        healthRecord:
+          $ref: "#/components/schemas/HealthRecord"
+        violations:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecordViolation"
+      required:
+        - healthRecord
+        - violations
+    HealthRecordCreateRequest:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/HealthRecordType"
+        measuredAt:
+          type: string
+          format: date-time
+        bpm:
+          type: integer
+          minimum: 1
+          maximum: 300
+          nullable: true
+        systolic:
+          type: integer
+          minimum: 50
+          maximum: 300
+          nullable: true
+        diastolic:
+          type: integer
+          minimum: 30
+          maximum: 200
+          nullable: true
+      required:
+        - type
+        - measuredAt
+      description: type=HR이면 hr 필수, type=BP이면 bp 필수
+    HealthRecordUpdateRequest:
+      oneOf:
+        - $ref: "#/components/schemas/HealthRecordUpdateHR"
+        - $ref: "#/components/schemas/HealthRecordUpdateBP"
+      description: HR 또는 BP 중 하나의 완성형 업데이트 요청
+    HealthRecordUpdateBase:
+      type: object
+      additionalProperties: false
+      properties:
+        measuredAt:
+          type: string
+          format: date-time
+          description: 측정 시간(수정 가능)
+    HealthRecordUpdateHR:
+      allOf:
+        - $ref: "#/components/schemas/HealthRecordUpdateBase"
+        - type: object
+          properties:
+            bpm:
+              type: integer
+              minimum: 1
+              maximum: 300
+          required:
+            - bpm
+    HealthRecordUpdateBP:
+      allOf:
+        - $ref: "#/components/schemas/HealthRecordUpdateBase"
+        - type: object
+          properties:
+            systolic:
+              type: integer
+              minimum: 50
+              maximum: 250
+            diastolic:
+              type: integer
+              minimum: 30
+              maximum: 200
+          required:
+            - systolic
+            - diastolic
+    HealthRecordListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthRecord"
+        pageInfo:
+          $ref: "#/components/schemas/PageInfo"
+      required:
+        - items
+        - pageInfo
+    RecordViolation:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        healthRecordId:
+          type: integer
+          format: int64
+        thresholdId:
+          type: integer
+          format: int64
+        metric:
+          $ref: "#/components/schemas/Metric"
+        ruleType:
+          $ref: "#/components/schemas/RuleType"
+        measuredValue:
+          type: number
+          format: double
+        direction:
+          type: string
+          nullable: true
+          enum:
+            - below_min
+            - above_max
+            - out_of_range
+        evaluatedAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+          description: UI 표시용 문구(서버에서 조합)
+      required:
+        - id
+        - healthRecordId
+        - thresholdId
+        - metric
+        - ruleType
+        - measuredValue
+        - evaluatedAt
+    ViolationRuleSummary:
+      oneOf:
+        - $ref: "#/components/schemas/ViolationRangeSummary"
+      description: 1.0 MVP에서는 range rule만 지원
+    ViolationRangeSummary:
+      type: object
+      properties:
+        ruleType:
+          type: string
+          enum:
+            - range
+        minValue:
+          type: number
+          format: double
+          nullable: true
+        maxValue:
+          type: number
+          format: double
+          nullable: true
+        violated:
+          type: string
+          enum:
+            - below_min
+            - above_max
+            - out_of_range
+      required:
+        - ruleType
+        - violated
+    Threshold:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        metric:
+          $ref: "#/components/schemas/Metric"
+        ruleType:
+          $ref: "#/components/schemas/RuleType"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        ruleDetails:
+          $ref: "#/components/schemas/ThresholdRuleDetails"
+      required:
+        - id
+        - userId
+        - metric
+        - ruleType
+        - createdAt
+        - updatedAt
+        - ruleDetails
+    ThresholdRuleDetails:
+      oneOf:
+        - $ref: "#/components/schemas/ThresholdRangeRule"
+      description: 1.0 MVP에서는 range rule만 지원
+    ThresholdRangeRule:
+      type: object
+      properties:
+        ruleType:
+          type: string
+          enum:
+            - range
+        minValue:
+          type: number
+          format: double
+          nullable: true
+        maxValue:
+          type: number
+          format: double
+          nullable: true
+      required:
+        - ruleType
+    ThresholdCreateRequest:
+      type: object
+      properties:
+        metric:
+          $ref: "#/components/schemas/Metric"
+        ruleDetails:
+          $ref: "#/components/schemas/ThresholdRuleDetails"
+      required:
+        - metric
+        - ruleDetails
+      description:
+        ruleDetails.ruleType은 ruleType과 동일해야 함 1.0에서는 ruleType은 고정(range)이며
+        요청 본문에서 생략한다.
+    ThresholdUpdateRequest:
+      type: object
+      properties:
+        ruleDetails:
+          $ref: "#/components/schemas/ThresholdRuleDetails"
+      description: 1.0에서는 ruleType은 고정(range)이며 요청 본문에서 생략한다.
+    ThresholdListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Threshold"
+      required:
+        - items
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        healthRecordId:
+          type: integer
+          format: int64
+        recordType:
+          $ref: "#/components/schemas/HealthRecordType"
+        measuredAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - healthRecordId
+        - recordType
+        - measuredAt
+        - message
+        - readAt
+        - createdAt
+    AlertMarkReadRequest:
+      type: object
+      properties:
+        read:
+          type: boolean
+          example: true
+      required:
+        - read
+    AlertListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        pageInfo:
+          $ref: "#/components/schemas/PageInfo"
+      required:
+        - items
+        - pageInfo
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+      required:
+        - refreshToken
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+      required:
+        - refreshToken
