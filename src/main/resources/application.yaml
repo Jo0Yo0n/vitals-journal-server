@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: vitals-journal-server
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:vitals_journal}
+    username: ${DB_USER:vitals}
+    password: ${DB_PASSWORD:vitals}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+      hibernate:
+        ddl-auto: validate
+
+  flyway:
+    enabled: true

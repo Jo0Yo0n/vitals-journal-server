@@ -3,15 +3,15 @@ services:
         image: postgres:18
         container_name: vitals-journal-postgres
         ports:
-            - "${DB_PORT}:5432"
+            - "${DB_PORT:-5432}:5432"
         environment:
-            POSTGRES_DB: ${DB_NAME}
-            POSTGRES_USER: ${DB_USER}
-            POSTGRES_PASSWORD: ${DB_PASSWORD}
+            POSTGRES_DB: ${DB_NAME:-vitals_journal}
+            POSTGRES_USER: ${DB_USER:-vitals}
+            POSTGRES_PASSWORD: ${DB_PASSWORD:-vitals}
         volumes:
             - vitals_journal_pgdata:/var/lib/postgresql
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+            test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-vitals} -d ${DB_NAME:-vitals_journal}"]
             interval: 5s
             timeout: 3s
             retries: 10
