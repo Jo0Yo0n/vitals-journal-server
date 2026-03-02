@@ -142,11 +142,11 @@ OR
 - metric
   - VARCHAR(16) NOT NULL CHECK (metric IN (‘HR’,‘BP_SYS’,‘BP_DIA’))
 - rule_type
-  - VARCHAR(16) NOT NULL CHECK (rule_type IN (‘range’,‘equals’,‘frequency’,‘consecutive’))
+  - VARCHAR(16) NOT NULL CHECK (rule_type IN (‘range’))
 - measured_value
   - NUMERIC(10,2) NOT NULL
 - direction
-  - VARCHAR(16) NULL CHECK (direction IN (‘below_min’,‘above_max’,‘out_of_range’,‘not_equal’))
+  - VARCHAR(16) NULL CHECK (direction IN (‘below_min’,‘above_max’,‘out_of_range’))
 - evaluated_at
   - TIMESTAMPZ NOT NULL DEFAULT now() – 평가/생성 시각(히스토리 그래프 기준)
 - deleted_at

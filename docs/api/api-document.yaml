@@ -204,7 +204,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: ""
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
                 bp_missing_field:
                   value:
@@ -248,11 +248,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ThresholdListResponse"
-      description: "- 기본적으로 삭제되지 않은 threshold만 반환합니다.
 
-        - include_deleted=true이면 deleted_at이 있는 threshold도 함께 반환합니다.
-
-        "
     post:
       tags:
         - Threshold
@@ -791,6 +787,10 @@ components:
           minimum: 30
           maximum: 200
           nullable: true
+        memo:
+          type: string
+          nullable: true
+          maxLength: 500
       required:
         - type
         - measuredAt
@@ -800,7 +800,8 @@ components:
         - $ref: "#/components/schemas/HealthRecordUpdateHR"
         - $ref: "#/components/schemas/HealthRecordUpdateBP"
       description: HR 또는 BP 중 하나의 완성형 업데이트 요청
-    HealthRecordUpdateBase:
+
+    HealthRecordUpdateHR:
       type: object
       additionalProperties: false
       properties:
@@ -808,33 +809,41 @@ components:
           type: string
           format: date-time
           description: 측정 시간(수정 가능)
-    HealthRecordUpdateHR:
-      allOf:
-        - $ref: "#/components/schemas/HealthRecordUpdateBase"
-        - type: object
-          properties:
-            bpm:
-              type: integer
-              minimum: 1
-              maximum: 300
-          required:
-            - bpm
+        bpm:
+          type: integer
+          minimum: 1
+          maximum: 300
+        memo:
+          type: string
+          nullable: true
+          maxLength: 500
+      required:
+        - bpm
+
     HealthRecordUpdateBP:
-      allOf:
-        - $ref: "#/components/schemas/HealthRecordUpdateBase"
-        - type: object
-          properties:
-            systolic:
-              type: integer
-              minimum: 50
-              maximum: 250
-            diastolic:
-              type: integer
-              minimum: 30
-              maximum: 200
-          required:
-            - systolic
-            - diastolic
+      type: object
+      additionalProperties: false
+      properties:
+        measuredAt:
+          type: string
+          format: date-time
+          description: 측정 시간(수정 가능)
+        systolic:
+          type: integer
+          minimum: 50
+          maximum: 300
+        diastolic:
+          type: integer
+          minimum: 30
+          maximum: 200
+        memo:
+          type: string
+          nullable: true
+          maxLength: 500
+      required:
+        - systolic
+        - diastolic
+
     HealthRecordListResponse:
       type: object
       properties:
@@ -931,9 +940,6 @@ components:
         createdAt:
           type: string
           format: date-time
-        updatedAt:
-          type: string
-          format: date-time
         ruleDetails:
           $ref: "#/components/schemas/ThresholdRuleDetails"
       required:
@@ -942,12 +948,12 @@ components:
         - metric
         - ruleType
         - createdAt
-        - updatedAt
         - ruleDetails
     ThresholdRuleDetails:
       oneOf:
         - $ref: "#/components/schemas/ThresholdRangeRule"
       description: 1.0 MVP에서는 range rule만 지원
+
     ThresholdRangeRule:
       type: object
       properties:
@@ -963,8 +969,7 @@ components:
           type: number
           format: double
           nullable: true
-      required:
-        - ruleType
+
     ThresholdCreateRequest:
       type: object
       properties:
@@ -976,14 +981,15 @@ components:
         - metric
         - ruleDetails
       description:
-        ruleDetails.ruleType은 ruleType과 동일해야 함 1.0에서는 ruleType은 고정(range)이며
-        요청 본문에서 생략한다.
+        ruleDetails.ruleType을 보내면 range여야 하며, 생략 시 기본값은 range.
+
     ThresholdUpdateRequest:
       type: object
       properties:
         ruleDetails:
           $ref: "#/components/schemas/ThresholdRuleDetails"
-      description: 1.0에서는 ruleType은 고정(range)이며 요청 본문에서 생략한다.
+      description: ruleDetails.ruleType을 보내면 range여야 하며, 생략 시 기본값은 range
+    
     ThresholdListResponse:
       type: object
       properties:
@@ -993,6 +999,7 @@ components:
             $ref: "#/components/schemas/Threshold"
       required:
         - items
+    
     Alert:
       type: object
       properties:
@@ -1024,6 +1031,7 @@ components:
         - message
         - readAt
         - createdAt
+    
     AlertMarkReadRequest:
       type: object
       properties:
@@ -1032,6 +1040,7 @@ components:
           example: true
       required:
         - read
+    
     AlertListResponse:
       type: object
       properties:
@@ -1044,6 +1053,7 @@ components:
       required:
         - items
         - pageInfo
+    
     RefreshRequest:
       type: object
       properties:
@@ -1051,6 +1061,7 @@ components:
           type: string
       required:
         - refreshToken
+    
     LogoutRequest:
       type: object
       properties:
