@@ -12,6 +12,8 @@
 - MVP: `docs/mvp/`
 - ERD: `docs/erd/`
 - OpenAPI: `docs/api/`
+- Git Workflow: `docs/collaboration/GIT_WORKFLOW.md`
+- PR Template: `.github/pull_request_template.md`
 
 ## A. 빠른 시작 (fallback 기본값)
 ```bash
