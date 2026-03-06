@@ -3,10 +3,10 @@
 ## 핵심 정책 요약
 
 > - HealthRecord는 사실 데이터(기록)이며, 생성 후 10분(created_at 기준)까지만 수정 가능(애플리케이션 정책).
-> - HealthRecord 생성/수정 시점에 **현재 활성 Threshold(threshold.deleted_at IS NULL)** 기준으로 평가하여 RecordViolation을 생성하고, 위반이 1개 이상이면 Alert 1개를 생성.
+> - HealthRecord 생성/수정 시점에 현재 활성 Threshold(threshold.deleted_at IS NULL) 기준으로 평가하여 RecordViolation을 생성하고, 위반이 1개 이상이면 Alert 1개를 생성.
 > - HealthRecord 삭제(soft-delete)시 해당 record로 생성된 Alert 및 RecordViolation도 함께 삭제(soft-delete)
-> - Threshold 삭제/수정(soft delete + 버전 생성)은 **향후 평가에만 영향**. 기존 Alert/RecordViolation은 자동 변경/삭제하지 않음.
-> - 기록 상세에서 표시하는 violations는 해당 record가 **마지막으로 평가된 시점(evaluated_at)** 의 결과(이벤트/평가 이력).
+> - Threshold 삭제/수정(soft delete + 버전 생성)은 향후 평가에만 영향. 기존 Alert/RecordViolation은 자동 변경/삭제하지 않음.
+> - 기록 상세에서 표시하는 violations는 해당 record가 마지막으로 평가된 시점(evaluated_at)의 결과(이벤트/평가 이력).
 
 ## users
 
@@ -29,8 +29,8 @@
   - PK, BIGSERIAL
 - user_id
   - FK, BIGINT NOT NULL
-- type
-  - VARCHAR(16) NOT NULL CHECK (type IN (‘HR’,‘BP’))
+- record_type
+  - VARCHAR(16) NOT NULL CHECK (record_type IN (‘HR’,‘BP’))
 - measured_at
   - TIMESTAMPZ NOT NULL
 - bpm
@@ -146,9 +146,9 @@ OR
 - measured_value
   - NUMERIC(10,2) NOT NULL
 - direction
-  - VARCHAR(16) NULL CHECK (direction IN (‘below_min’,‘above_max’,‘out_of_range’))
+  - VARCHAR(16) NULL CHECK (direction IN (‘below_min’,‘above_max’))
 - evaluated_at
-  - TIMESTAMPZ NOT NULL DEFAULT now() – 평가/생성 시각(히스토리 그래프 기준)
+  - TIMESTAMPZ NOT NULL DEFAULT now()
 - deleted_at
   - TIMESTAMPZ NULL
 
