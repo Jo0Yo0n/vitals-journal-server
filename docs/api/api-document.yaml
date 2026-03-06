@@ -1728,7 +1728,6 @@ components:
           enum:
             - below_min
             - above_max
-            - out_of_range
         evaluatedAt:
           type: string
           format: date-time
