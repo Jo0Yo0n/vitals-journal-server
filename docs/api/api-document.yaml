@@ -1948,21 +1948,25 @@ components:
         - VALIDATION_ERROR
         - INVALID_REQUEST
         - MALFORMED_JSON
-        - UNAUTHORIZED
-        - FORBIDDEN
-        - RESOURCE_NOT_FOUND
-        - CONFLICT
-        - INTERNAL_ERROR
         - EMAIL_ALREADY_EXISTS
         - INVALID_CREDENTIALS
         - INVALID_REFRESH_TOKEN
         - ACCOUNT_DELETED
+        - INVALID_ACCESS_TOKEN
+        - ACCESS_TOKEN_EXPIRED
+        - REFRESH_TOKEN_EXPIRED
+        - REFRESH_TOKEN_REVOKED
         - HEALTH_RECORD_NOT_FOUND
         - EDIT_WINDOW_EXPIRED
         - HEALTH_RECORD_TYPE_MISMATCH
         - THRESHOLD_NOT_FOUND
         - THRESHOLD_ALREADY_EXISTS
+        - INVALID_THRESHOLD_RANGE
+        - UNSUPPORTED_RULE_TYPE
         - ALERT_NOT_FOUND
+        - PAGE_SIZE_TOO_LARGE
+        - UNSUPPORTED_SORT_FIELD
+        - INTERNAL_ERROR
       description: 애플리케이션 에러 코드. HTTP 상태코드와 함께 사용하여 클라이언트가 안정적으로 분기할 수 있도록 합니다.
     HealthRecordCreateHR:
       type: object
