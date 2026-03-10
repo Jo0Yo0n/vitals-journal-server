@@ -30,7 +30,7 @@ info:
       "code": "VALIDATION_ERROR",
       "message": "Invalid request",
       "fieldErrors": [
-        { "field": "diastolic", "reason": "required", "message": "diastolic is required" }
+        { "field": "body.diastolic", "reason": "required" }
       ],
       "traceId": "f6d6b0e6b9b64c65",
       "timestamp": "2026-03-02T12:34:56Z"
@@ -38,8 +38,8 @@ info:
     ```
 
     - `code`: 애플리케이션 에러 코드(클라이언트 분기 기준)
-    - `message`: 사람이 읽기 좋은 요약 메시지
-    - `fieldErrors`: 필드/파라미터 단위 검증 실패(없으면 빈 배열)
+    - `message`: 사람이 읽기 좋은 요약 메시지. validation 에러에서는 포괄적인 요약(예: `Invalid request`)을 사용하고, 구체적인 필드 단위 사유는 `fieldErrors`로 전달
+    - `fieldErrors`: 입력값 검증 실패 상세. 클라이언트가 필드별 오류를 매핑할 수 있도록 validation 에러에서만 채우며, 그 외에는 빈 배열
     - `traceId`: 로그 추적용(옵션)
     - `timestamp`: 서버 발생 시각(UTC)
 
@@ -123,9 +123,7 @@ paths:
                   value:
                     code: EMAIL_ALREADY_EXISTS
                     message: Email already exists
-                    fieldErrors:
-                      - field: email
-                        reason: duplicate
+                    fieldErrors: []
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
       operationId: register
@@ -299,15 +297,13 @@ paths:
                 invalid_range:
                   summary: Bad Request - 기간 필터 오류
                   value:
-                    code: INVALID_REQUEST
-                    message: "`from_measured_at` must be before `to_measured_at`"
+                    code: VALIDATION_ERROR
+                    message: Invalid request
                     fieldErrors:
-                      - field: query.from_measured_at
-                        reason: range
-                        message: must be < to_measured_at
-                      - field: query.to_measured_at
-                        reason: range
-                        message: must be > from_measured_at
+                      - field: query.fromMeasuredAt
+                        reason: must_be_before
+                      - field: query.toMeasuredAt
+                        reason: must_be_after
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
         "401":
@@ -317,7 +313,7 @@ paths:
         건강 측정 기록 목록 조회.
 
         - 인증: Bearer Access Token
-        - 필터: `from_measured_at`(inclusive), `to_measured_at`(exclusive), `type`
+        - 필터: `fromMeasuredAt`(inclusive), `toMeasuredAt`(exclusive), `type`
         - 페이지네이션: `page`(0-based), `size`(1~100)
         - 정렬: `sort=measuredAt,desc` 기본
       security:
@@ -388,11 +384,10 @@ paths:
                   summary: Bad Request - 필수 필드 누락/검증 실패
                   value:
                     code: VALIDATION_ERROR
-                    message: BP record requires both systolic and diastolic
+                    message: Invalid request
                     fieldErrors:
-                      - field: diastolic
+                      - field: body.diastolic
                         reason: required
-                        message: diastolic is required
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
         "401":
@@ -531,9 +526,7 @@ paths:
                   value:
                     code: EDIT_WINDOW_EXPIRED
                     message: Record can only be edited within 10 minutes of creation.
-                    fieldErrors:
-                      - field: path.healthRecordId
-                        reason: edit_window_expired
+                    fieldErrors: []
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
         "400":
@@ -547,11 +540,10 @@ paths:
                   summary: Bad Request - type 불일치/필수 필드 누락/검증 실패
                   value:
                     code: VALIDATION_ERROR
-                    message: BP record update requires both systolic and diastolic
+                    message: Invalid request
                     fieldErrors:
-                      - field: diastolic
+                      - field: body.diastolic
                         reason: required
-                        message: diastolic is required
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
         "404":
@@ -648,8 +640,8 @@ paths:
         Threshold 목록 조회.
 
         - 인증: Bearer Access Token
-        - 필터: metric, rule_type
-        - include_deleted=true면 soft-deleted threshold도 포함합니다(버전 이력 확인 목적).
+        - 필터: `metric`, `ruleType`
+        - `includeDeleted=true`면 soft-deleted threshold도 포함합니다(버전 이력 확인 목적).
         - 기본적으로 활성 threshold(deletedAt=null)만 반환합니다.
       security:
         - bearerAuth: []
@@ -711,9 +703,7 @@ paths:
                   value:
                     code: THRESHOLD_ALREADY_EXISTS
                     message: Active threshold already exists for (metric, ruleType)
-                    fieldErrors:
-                      - field: metric
-                        reason: duplicate
+                    fieldErrors: []
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
         "400":
@@ -937,15 +927,13 @@ paths:
                 invalid_range:
                   summary: Bad Request - 기간 필터 오류
                   value:
-                    code: INVALID_REQUEST
-                    message: "`from_created_at` must be before `to_created_at`"
+                    code: VALIDATION_ERROR
+                    message: Invalid request
                     fieldErrors:
-                      - field: query.from_created_at
-                        reason: range
-                        message: must be < to_created_at
-                      - field: query.to_created_at
-                        reason: range
-                        message: must be > from_created_at
+                      - field: query.fromCreatedAt
+                        reason: must_be_before
+                      - field: query.toCreatedAt
+                        reason: must_be_after
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
         "401":
@@ -956,7 +944,7 @@ paths:
 
         - 인증: Bearer Access Token
         - 기본 조건: `is_silent=false` AND `deleted_at is null` 만 조회(MVP)
-        - 필터: unread_only, from_created_at(inclusive), to_created_at(exclusive)
+        - 필터: `unreadOnly`, `fromCreatedAt`(inclusive), `toCreatedAt`(exclusive)
         - 페이지네이션: page(0-based), size(1~100)
         - 정렬: 기본 createdAt,desc
       security:
@@ -1059,11 +1047,10 @@ paths:
                   summary: Bad Request - 요청 검증 실패
                   value:
                     code: VALIDATION_ERROR
-                    message: "`read` is required"
+                    message: Invalid request
                     fieldErrors:
-                      - field: read
+                      - field: body.read
                         reason: required
-                        message: read is required
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
         "401":
@@ -1224,9 +1211,9 @@ paths:
                   summary: Bad Request - 형식 오류
                   value:
                     code: VALIDATION_ERROR
-                    message: refreshToken is required
+                    message: Invalid request
                     fieldErrors:
-                      - field: refreshToken
+                      - field: body.refreshToken
                         reason: required
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
@@ -1304,48 +1291,48 @@ components:
         $ref: "#/components/schemas/Metric"
       description: Threshold 대상 지표
     RuleType:
-      name: rule_type
+      name: ruleType
       in: query
       schema:
         $ref: "#/components/schemas/RuleType"
       description: "규칙 타입(MVP: range)"
     UnreadOnly:
-      name: unread_only
+      name: unreadOnly
       in: query
       schema:
         type: boolean
         default: false
       description: true면 읽지 않은 알림만 조회(readAt is null)
     FromMeasuredAt:
-      name: from_measured_at
+      name: fromMeasuredAt
       in: query
       schema:
         type: string
         format: date-time
       description: 측정 시각 필터 시작(from, inclusive). ISO-8601 date-time
     ToMeasuredAt:
-      name: to_measured_at
+      name: toMeasuredAt
       in: query
       schema:
         type: string
         format: date-time
       description: 측정 시각 필터 끝(to, exclusive). ISO-8601 date-time
     FromCreatedAt:
-      name: from_created_at
+      name: fromCreatedAt
       in: query
       schema:
         type: string
         format: date-time
       description: 생성 시각 필터 시작(from, inclusive). ISO-8601 date-time
     ToCreatedAt:
-      name: to_created_at
+      name: toCreatedAt
       in: query
       schema:
         type: string
         format: date-time
       description: 생성 시각 필터 끝(to, exclusive). ISO-8601 date-time
     IncludeDeleted:
-      name: include_deleted
+      name: includeDeleted
       in: query
       schema:
         type: boolean
@@ -1398,10 +1385,10 @@ components:
           $ref: "#/components/schemas/ErrorCode"
         message:
           type: string
-          description: 사람이 읽기 좋은 요약 메시지
+          description: 사람이 읽기 좋은 요약 메시지. validation 에러에서는 포괄적인 요약을 사용하고, 비검증 에러에서는 사용자의 다음 행동을 이해할 수 있는 짧고 직접적인 문구를 사용합니다.
         fieldErrors:
           type: array
-          description: 필드/파라미터 단위 검증 실패 목록. 없으면 빈 배열.
+          description: 입력값(body/query/path) 검증 실패 목록. `VALIDATION_ERROR` 등 검증 실패에서만 채우며, 비즈니스 에러에서는 빈 배열입니다. 클라이언트는 이 목록을 사용해 필드별 오류를 표시합니다.
           items:
             $ref: "#/components/schemas/FieldError"
         traceId:
@@ -1423,17 +1410,17 @@ components:
       properties:
         field:
           type: string
-          description: "오류가 발생한 필드/파라미터 이름. (예: body.diastolic, query.from_measured_at)"
-          example: diastolic
+          description: "오류가 발생한 입력 위치. `body.`, `query.`, `path.` 접두어를 포함해 클라이언트가 입력 컴포넌트에 바로 매핑할 수 있는 이름을 사용합니다. (예: body.diastolic, query.fromMeasuredAt)"
+          example: body.diastolic
         reason:
           type: string
-          description: 머신-리더블한 실패 사유 코드(짧은 키워드 권장).
+          description: 입력 검증 실패의 머신-리더블한 사유 코드. 클라이언트는 이 값을 기준으로 필드별 문구를 해석하며, 최상위 `message`를 파싱하지 않습니다.
+          enum:
+            - required
+            - invalid_format
+            - must_be_before
+            - must_be_after
           example: required
-        message:
-          type: string
-          nullable: true
-          description: 사람이 읽기 좋은 상세 메시지(옵션).
-          example: diastolic is required
         rejectedValue:
           nullable: true
           description: 거부된 입력값(옵션). 민감정보 포함 금지.
@@ -1950,7 +1937,7 @@ components:
         - EMAIL_ALREADY_EXISTS
         - INVALID_CREDENTIALS
         - INVALID_REFRESH_TOKEN
-        - ACCOUNT_DELETED
+        - UNAUTHORIZED
         - HEALTH_RECORD_NOT_FOUND
         - EDIT_WINDOW_EXPIRED
         - HEALTH_RECORD_TYPE_MISMATCH
@@ -2034,9 +2021,8 @@ components:
                 code: VALIDATION_ERROR
                 message: Invalid request
                 fieldErrors:
-                  - field: measuredAt
+                  - field: body.measuredAt
                     reason: invalid_format
-                    message: must be ISO-8601 date-time
                 traceId: f6d6b0e6b9b64c65
                 timestamp: "2026-03-02T12:34:56Z"
     Unauthorized:
