@@ -1,3 +1,3 @@
 package io.github.jo0yo0n.vitalsjournal.common.error;
 
-public record FieldErrorDetail(String field, String reason) {}
+public record FieldErrorDetail(String field, FieldErrorReason reason) {}

@@ -301,9 +301,7 @@ paths:
                     message: Invalid request
                     fieldErrors:
                       - field: query.fromMeasuredAt
-                        reason: must_be_before
-                      - field: query.toMeasuredAt
-                        reason: must_be_after
+                        reason: invalid
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
         "401":
@@ -931,9 +929,7 @@ paths:
                     message: Invalid request
                     fieldErrors:
                       - field: query.fromCreatedAt
-                        reason: must_be_before
-                      - field: query.toCreatedAt
-                        reason: must_be_after
+                        reason: invalid
                     traceId: f6d6b0e6b9b64c65
                     timestamp: "2026-03-02T12:34:56Z"
         "401":
@@ -1414,12 +1410,11 @@ components:
           example: body.diastolic
         reason:
           type: string
-          description: 입력 검증 실패의 머신-리더블한 사유 코드. 클라이언트는 이 값을 기준으로 필드별 문구를 해석하며, 최상위 `message`를 파싱하지 않습니다.
+          description: 입력 검증 실패의 머신-리더블한 사유 코드. 클라이언트는 이 값을 기준으로 필드별 문구를 해석하며, 최상위 `message`를 파싱하지 않습니다. 상호 연관된 값의 검증 실패는 대표 필드 하나에만 매핑합니다. 기간 범위 검증에서는 시작 필드(`from...`)를 사용합니다.
           enum:
             - required
-            - invalid_format
-            - must_be_before
-            - must_be_after
+            - invalid
+            - invalid
           example: required
         rejectedValue:
           nullable: true
@@ -2022,7 +2017,7 @@ components:
                 message: Invalid request
                 fieldErrors:
                   - field: body.measuredAt
-                    reason: invalid_format
+                    reason: invalid
                 traceId: f6d6b0e6b9b64c65
                 timestamp: "2026-03-02T12:34:56Z"
     Unauthorized:
