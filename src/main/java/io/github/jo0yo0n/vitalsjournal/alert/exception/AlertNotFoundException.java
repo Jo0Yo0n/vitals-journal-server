@@ -7,8 +7,4 @@ public class AlertNotFoundException extends BusinessException {
   public AlertNotFoundException() {
     super(ErrorCode.ALERT_NOT_FOUND);
   }
-
-  public AlertNotFoundException(String message) {
-    super(ErrorCode.ALERT_NOT_FOUND, message);
-  }
 }

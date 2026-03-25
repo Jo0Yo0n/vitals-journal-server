@@ -1,67 +1,7 @@
 openapi: 3.0.3
 info:
   title: Healthcare Threshold & Alert API
-  version: 0.2.0
-  description: |-
-    ## Overview
-
-    건강 지표(심박/혈압)를 기록하고, 사용자별 Threshold 규칙으로 이상 징후를 평가하여 위반(RecordViolation) 및 알림(Alert) 을 생성.
-
-    ### Domain rules (MVP)
-
-    - HealthRecord 생성/수정 시점에 **현재 활성 Threshold(threshold.deleted_at IS NULL)** 기준으로 평가하여 RecordViolation을 생성.
-    - 위반이 1개 이상이면 record 당 Alert 1개를 생성.
-    - 과거 측정값 입력 시에도 Alert는 생성하되, `measuredAt < now() - 10m` 인 경우 `Alert.is_silent=true` 로 저장되며 기본 조회에서 제외.
-    - HealthRecord는 생성 후 10분(createdAt 기준) 까지만 수정 가능.
-    - HealthRecord 삭제(soft-delete) 시, 해당 record로 생성된 Alert/RecordViolation도 함께 soft-delete.
-    - Threshold 수정은 버전 방식(기존 soft-delete + 신규 row 생성)이며 향후 평가에만 영향을 줌. 과거 Alert/RecordViolation은 자동 변경하지 않음.
-
-    ## Authentication
-
-    - 보호된 API는 `Authorization: Bearer <accessToken>` 헤더가 필요.
-    - `/auth/refresh`, `/auth/logout` 은 Access Token 없이 refreshToken 으로만 동작(Body).
-
-    ## Error response standard
-
-    모든 4xx/5xx 에러 응답은 동일한 JSON 포맷을 사용.
-
-    ```json
-    {
-      "code": "VALIDATION_ERROR",
-      "message": "Invalid request",
-      "fieldErrors": [
-        { "field": "body.diastolic", "reason": "required" }
-      ],
-      "traceId": "f6d6b0e6b9b64c65",
-      "timestamp": "2026-03-02T12:34:56Z"
-    }
-    ```
-
-    - `code`: 애플리케이션 에러 코드(클라이언트 분기 기준)
-    - `message`: 사람이 읽기 좋은 요약 메시지. validation 에러에서는 포괄적인 요약(예: `Invalid request`)을 사용하고, 구체적인 필드 단위 사유는 `fieldErrors`로 전달
-    - `fieldErrors`: 입력값 검증 실패 상세. 클라이언트가 필드별 오류를 매핑할 수 있도록 validation 에러에서만 채우며, 그 외에는 빈 배열
-    - `traceId`: 로그 추적용(옵션)
-    - `timestamp`: 서버 발생 시각(UTC)
-
-    ### Error code catalog (대표)
-
-    | HTTP | code | 의미 |
-    | --- | --- | --- |
-    | 400 | VALIDATION_ERROR | 요청 스키마/검증 실패 |
-    | 401 | UNAUTHORIZED | 인증 실패/만료 |
-    | 403 | FORBIDDEN | 권한 없음(리소스 소유자 아님 등) |
-    | 404 | RESOURCE_NOT_FOUND | 리소스 없음(또는 접근 불가를 404로 마스킹) |
-    | 409 | CONFLICT | 비즈니스 충돌(중복, 수정 가능 시간 만료 등) |
-    | 500 | INTERNAL_ERROR | 서버 내부 오류 |
-
-    > 상세한 도메인별 code는 `components.schemas.ErrorCode` 를 참고 바람.
-
-    ## Pagination, sorting, filtering
-
-    - Pagination: `page`는 0-based, `size`는 1~100 (default 20)
-    - Sorting: `sort=field,dir` 형식이며 `dir`은 `asc|desc`, 동일 파라미터 반복 가능(예: `sort=measuredAt,desc&sort=id,desc`)
-    - Filtering: 기간 필터는 `from_*` inclusive, `to_*` exclusive 를 기본으로 함.
-    - 모든 시간 필드는 ISO-8601 `date-time`(timezone 포함)으로 요청/응답하며, 서버는 UTC로 저장 및 응답.
+  version: 0.3.0
 servers:
   - url: http://localhost:8080
 security:
@@ -85,12 +25,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/RegisterRequest"
-            examples:
-              success:
-                summary: 회원가입 요청
-                value:
-                  email: user@example.com
-                  password: Password123!
       responses:
         "201":
           description: Created
@@ -98,40 +32,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
-              examples:
-                success:
-                  summary: 가입 성공
-                  value:
-                    accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ACCESS.TOKEN
-                    tokenType: Bearer
-                    refreshToken: rft_01HXYZEXAMPLE
-                    user:
-                      id: 1
-                      email: user@example.com
-                      createdAt: "2026-03-01T10:00:00Z"
         "400":
-          $ref: "#/components/responses/BadRequest"
+          $ref: "#/components/responses/ValidationProblem"
         "409":
-          description: Conflict - 이메일 중복
+          description: 이메일이 이미 사용 중입니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                email_already_exists:
-                  summary: Conflict - 이메일 중복
+                example:
                   value:
-                    code: EMAIL_ALREADY_EXISTS
-                    message: Email already exists
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-      operationId: register
-      description: |-
-        회원가입.
-
-        - 인증: 없음
-        - 목적: 신규 사용자 계정 생성 후 access/refresh 토큰 발급
+                    type: http://localhost:8080/problems/email-already-exists
+                    title: Email already exists
+                    status: 409
+                    detail: Email is already registered.
+                    instance: /auth/register
+                    errorCode: EMAIL_ALREADY_EXISTS
   /auth/login:
     post:
       tags:
@@ -144,12 +61,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/LoginRequest"
-            examples:
-              success:
-                summary: 로그인 요청
-                value:
-                  email: user@example.com
-                  password: Password123!
       responses:
         "200":
           description: OK
@@ -157,40 +68,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
-              examples:
-                success:
-                  summary: 로그인 성공
-                  value:
-                    accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ACCESS.TOKEN
-                    tokenType: Bearer
-                    refreshToken: rft_01HXYZEXAMPLE
-                    user:
-                      id: 1
-                      email: user@example.com
-                      createdAt: "2026-03-01T10:00:00Z"
         "400":
-          $ref: "#/components/responses/BadRequest"
+          $ref: "#/components/responses/ValidationProblem"
         "401":
-          description: Unauthorized - 자격 증명 실패
+          description: 이메일 또는 비밀번호가 올바르지 않습니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                invalid_credentials:
-                  summary: Unauthorized - 자격 증명 실패
+                example:
                   value:
-                    code: INVALID_CREDENTIALS
-                    message: Invalid email or password
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-      operationId: login
-      description: |-
-        로그인.
-
-        - 인증: 없음
-        - 목적: 이메일/비밀번호로 인증 후 access/refresh 토큰 발급
+                    type: http://localhost:8080/problems/invalid-credentials
+                    title: Invalid credentials
+                    status: 401
+                    detail: Email or password is invalid.
+                    instance: /auth/login
+                    errorCode: INVALID_CREDENTIALS
+        "403":
+          description: 탈퇴된 계정입니다.
+          content:
+            application/problem+json:
+              schema: &id001
+                $ref: "#/components/schemas/Problem"
+              examples:
+                example:
+                  value:
+                    type: http://localhost:8080/problems/account-deleted
+                    title: Account deleted
+                    status: 403
+                    detail: The account has been deleted and cannot be used anymore.
+                    instance: /auth/login
+                    errorCode: ACCOUNT_DELETED
   /users/me:
     get:
       tags:
@@ -203,41 +112,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
-              examples:
-                success:
-                  summary: 조회 성공
-                  value:
-                    id: 1
-                    email: user@example.com
-                    createdAt: "2026-03-01T10:00:00Z"
         "401":
-          $ref: "#/components/responses/Unauthorized"
-      operationId: getMe
-      description: |-
-        내 정보 조회.
-
-        - 인증: Bearer Access Token
-        - 목적: 로그인된 사용자 정보 반환
-      security:
-        - bearerAuth: []
+          $ref: "#/components/responses/UnauthorizedProblem"
     delete:
       tags:
         - User
       summary: 회원 탈퇴(soft-delete)
-      description: |-
-        회원 탈퇴(soft-delete).
-
-        - 인증: Bearer Access Token
-        - 목적: 사용자 계정을 soft-delete 처리하며, refresh_token 전부 revoked 처리 (MVP 정책)
-        - 결과: 이후 로그인/토큰 재발급 불가
+      description: 사용자 계정을 soft-delete 처리하며, 이후 로그인/토큰 재발급 불가
       responses:
         "204":
           description: No Content
         "401":
-          $ref: "#/components/responses/Unauthorized"
-      operationId: deleteMe
-      security:
-        - bearerAuth: []
+          $ref: "#/components/responses/UnauthorizedProblem"
   /health-records:
     get:
       tags:
@@ -249,7 +135,6 @@ paths:
         - $ref: "#/components/parameters/Type"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
-        - $ref: "#/components/parameters/SortHealthRecords"
       responses:
         "200":
           description: OK
@@ -257,98 +142,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthRecordListResponse"
-              examples:
-                success:
-                  summary: 목록 조회 성공
-                  value:
-                    items:
-                      - id: 101
-                        userId: 1
-                        type: BP
-                        measuredAt: "2026-03-01T21:00:00Z"
-                        createdAt: "2026-03-01T21:00:30Z"
-                        bpm: null
-                        systolic: 120
-                        diastolic: 80
-                        memo: null
-                      - id: 100
-                        userId: 1
-                        type: HR
-                        measuredAt: "2026-03-01T09:00:00Z"
-                        createdAt: "2026-03-01T09:01:00Z"
-                        bpm: 72
-                        systolic: null
-                        diastolic: null
-                        memo: morning
-                    pageInfo:
-                      page: 0
-                      size: 20
-                      totalElements: 2
-                      totalPages: 1
-                      hasPrev: false
-                      hasNext: false
-        "400":
-          description: Bad Request - 기간 필터 오류
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                invalid_range:
-                  summary: Bad Request - 기간 필터 오류
-                  value:
-                    code: VALIDATION_ERROR
-                    message: Invalid request
-                    fieldErrors:
-                      - field: query.fromMeasuredAt
-                        reason: invalid
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
         "401":
-          $ref: "#/components/responses/Unauthorized"
-      operationId: listHealthRecords
-      description: |-
-        건강 측정 기록 목록 조회.
-
-        - 인증: Bearer Access Token
-        - 필터: `fromMeasuredAt`(inclusive), `toMeasuredAt`(exclusive), `type`
-        - 페이지네이션: `page`(0-based), `size`(1~100)
-        - 정렬: `sort=measuredAt,desc` 기본
-      security:
-        - bearerAuth: []
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "400":
+          $ref: "#/components/responses/BadRequestProblem"
     post:
       tags:
         - HealthRecord
       summary: 건강 측정 기록 생성
-      description: |-
-        건강 측정 기록 생성.
+      description:
+        "- 과거 시점(measuredAt)의 record를 입력해도 입력 시점(createdAt)의 현재 활성 threshold
+        기준으로 평가합니다.
 
-        - 인증: Bearer Access Token
-        - 목적: 측정값 저장 + 현재 활성 Threshold로 평가하여 violations/alert 생성
-        - 과거 시점(measuredAt) 입력 시에도 '입력 시점(createdAt)'의 활성 threshold 기준으로 평가합니다.
-        - 위반이 1개 이상이면 alert 1개를 생성합니다.
-        - `measuredAt < now() - 10m` 인 경우 생성되는 alert는 `is_silent=true` 로 저장되며 기본 조회(/alerts)에서 제외됩니다.
+        - 평가 결과(violation)가 1개 이상이면 alert 1개를 생성합니다.
+
+        - violation과 alert는 파생 데이터이며, threshold 삭제/수정이 기존 violation 또는 alert를 자동으로
+        변경하지 않습니다."
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/HealthRecordCreateRequest"
-            examples:
-              hr_ok:
-                summary: 심박 기록 생성
-                value:
-                  type: HR
-                  measuredAt: "2026-03-01T09:00:00Z"
-                  bpm: 72
-                  memo: morning
-              bp_ok:
-                summary: 혈압 기록 생성
-                value:
-                  type: BP
-                  measuredAt: "2026-03-01T21:00:00Z"
-                  systolic: 120
-                  diastolic: 80
       responses:
         "201":
           description: Created
@@ -356,43 +171,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthRecordDetailResponse"
-              examples:
-                success:
-                  summary: 생성 성공
-                  value:
-                    healthRecord:
-                      id: 100
-                      userId: 1
-                      type: HR
-                      measuredAt: "2026-03-01T09:00:00Z"
-                      createdAt: "2026-03-01T09:01:00Z"
-                      bpm: 72
-                      systolic: null
-                      diastolic: null
-                      memo: morning
-                    violations: []
-        "400":
-          description: Bad Request - 필수 필드 누락/검증 실패
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                bp_missing_field:
-                  summary: Bad Request - 필수 필드 누락/검증 실패
-                  value:
-                    code: VALIDATION_ERROR
-                    message: Invalid request
-                    fieldErrors:
-                      - field: body.diastolic
-                        reason: required
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
         "401":
-          $ref: "#/components/responses/Unauthorized"
-      operationId: createHealthRecord
-      security:
-        - bearerAuth: []
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "400":
+          description: 요청 본문 검증 실패 또는 type에 맞지 않는 필드 조합
+          content:
+            application/problem+json:
+              schema: *id001
+              examples:
+                validation_error:
+                  value:
+                    type: http://localhost:8080/problems/validation-error
+                    title: Request validation failed
+                    status: 400
+                    detail: Request validation failed.
+                    instance: /health-records
+                    errorCode: VALIDATION_ERROR
+                    errors:
+                      - name: measuredAt
+                        reason: required
+                type_mismatch:
+                  value:
+                    type: http://localhost:8080/problems/health-record-type-mismatch
+                    title: Health record type mismatch
+                    status: 400
+                    detail: The field set does not match the health record type.
+                    instance: /health-records
+                    errorCode: HEALTH_RECORD_TYPE_MISMATCH
+                    errors:
+                      - name: diastolic
+                        reason: invalid
   /health-records/{healthRecordId}:
     get:
       tags:
@@ -407,69 +215,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthRecordDetailResponse"
-              examples:
-                success:
-                  summary: 조회 성공(위반 1건 포함)
-                  value:
-                    healthRecord:
-                      id: 100
-                      userId: 1
-                      type: HR
-                      measuredAt: "2026-03-01T09:00:00Z"
-                      createdAt: "2026-03-01T09:01:00Z"
-                      bpm: 120
-                      systolic: null
-                      diastolic: null
-                      memo: null
-                    violations:
-                      - id: 900
-                        healthRecordId: 100
-                        thresholdId: 300
-                        metric: HR
-                        ruleType: range
-                        measuredValue: 120.0
-                        direction: above_max
-                        evaluatedAt: "2026-03-01T09:01:00Z"
-                        message: HR is above max threshold (measured=120, max=100)
         "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+          $ref: "#/components/responses/UnauthorizedProblem"
         "404":
-          description: Not Found - 기록 없음
+          description: 해당 건강 기록을 찾을 수 없습니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                not_found:
-                  summary: Not Found - 기록 없음
+                example:
                   value:
-                    code: HEALTH_RECORD_NOT_FOUND
-                    message: HealthRecord not found
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-      description: |-
-        건강 측정 기록 단건 조회 (위반 내역 포함).
+                    type: http://localhost:8080/problems/health-record-not-found
+                    title: Health record not found
+                    status: 404
+                    detail: No health record found for the given id.
+                    instance: /health-records/123
+                    errorCode: HEALTH_RECORD_NOT_FOUND
+      description:
+        "- 기록 상세의 violation 목록은 해당 record가 마지막으로 평가(evaluatedAt)될 당시 적용된
+        threshold로 생성된 결과입니다.
 
-        - 인증: Bearer Access Token
-        - 목적: 기록 + 마지막 평가 시점(evaluatedAt)의 violations 반환
-        - 주의: threshold가 삭제/수정되어도 과거 violation은 유지됩니다(평가 이력).
-      operationId: getHealthRecord
-      security:
-        - bearerAuth: []
+        - threshold가 soft delete되어도 과거 violation은 유지되며, thresholdId로 조회 가능합니다."
     patch:
       tags:
         - HealthRecord
       summary: 건강 측정 기록 수정 (기존 alert soft-delete 후 재평가)
-      description: |-
-        건강 측정 기록 수정.
+      description:
+        "- record는 생성(createdAt) 후 10분 이내에만 수정할 수 있습니다.
 
-        - 인증: Bearer Access Token
-        - 정책: record는 생성(createdAt) 후 10분 이내에만 수정 가능
-        - 수정 시 기존 alert/violation은 soft-delete 후, 현재 활성 threshold 기준으로 재평가하여 재생성
-        - 요청은 HR 또는 BP 중 하나의 '완성형'이어야 합니다(oneOf).
+        - 수정 시 해당 record로 생성된 기존 alert와 violation은 soft delete로 무효화합니다.
+
+        - 이후 현재 활성 threshold 기준으로 재평가하여 violation을 다시 생성합니다.
+
+        - violation이 1개 이상이면 alert 1개를 재생성합니다.
+
+        - type에 맞는 필드 세트를 완성형으로 보내야 합니다. 예: BP면 systolic과 diastolic을 함께 보내야 합니다."
       security:
         - bearerAuth: []
       parameters:
@@ -497,109 +278,83 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthRecordDetailResponse"
-              examples:
-                success:
-                  summary: 수정 성공
-                  value:
-                    healthRecord:
-                      id: 100
-                      userId: 1
-                      type: HR
-                      measuredAt: "2026-03-01T09:02:00Z"
-                      createdAt: "2026-03-01T09:01:00Z"
-                      bpm: 75
-                      systolic: null
-                      diastolic: null
-                      memo: after edit
-                    violations: []
         "409":
-          description: Conflict - 수정 가능 시간 만료
+          description: 수정 가능 시간(생성 후 10분)이 만료되었습니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                edit_window_expired:
-                  summary: Conflict - 수정 가능 시간 만료
+                example:
                   value:
-                    code: EDIT_WINDOW_EXPIRED
-                    message: Record can only be edited within 10 minutes of creation.
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
+                    type: http://localhost:8080/problems/edit-window-expired
+                    title: Edit window expired
+                    status: 409
+                    detail: Record can only be edited within 10 minutes of creation.
+                    instance: /health-records/123
+                    errorCode: EDIT_WINDOW_EXPIRED
         "400":
-          description: Bad Request - type 불일치/필수 필드 누락/검증 실패
+          description: 요청 본문 검증 실패 또는 type에 맞지 않는 필드 조합
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+            application/problem+json:
+              schema: *id001
               examples:
-                bp_missing_field:
-                  summary: Bad Request - type 불일치/필수 필드 누락/검증 실패
+                validation_error:
                   value:
-                    code: VALIDATION_ERROR
-                    message: Invalid request
-                    fieldErrors:
-                      - field: body.diastolic
-                        reason: required
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
+                    type: http://localhost:8080/problems/validation-error
+                    title: Request validation failed
+                    status: 400
+                    detail: Request validation failed.
+                    instance: /health-records/123
+                    errorCode: VALIDATION_ERROR
+                    errors:
+                      - name: measuredAt
+                        reason: invalid
+                type_mismatch:
+                  value:
+                    type: http://localhost:8080/problems/health-record-type-mismatch
+                    title: Health record type mismatch
+                    status: 400
+                    detail:
+                      The field set does not match the existing health record
+                      type.
+                    instance: /health-records/123
+                    errorCode: HEALTH_RECORD_TYPE_MISMATCH
+                    errors:
+                      - name: diastolic
+                        reason: invalid
         "404":
-          description: Not Found - 기록 없음
+          description: 해당 건강 기록을 찾을 수 없습니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                not_found:
-                  summary: Not Found - 기록 없음
+                example:
                   value:
-                    code: HEALTH_RECORD_NOT_FOUND
-                    message: HealthRecord not found
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
+                    type: http://localhost:8080/problems/health-record-not-found
+                    title: Health record not found
+                    status: 404
+                    detail: No health record found for the given id.
+                    instance: /health-records/123
+                    errorCode: HEALTH_RECORD_NOT_FOUND
         "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-      operationId: updateHealthRecord
+          $ref: "#/components/responses/UnauthorizedProblem"
     delete:
       tags:
         - HealthRecord
       summary: 건강 측정 기록 삭제 (연관 alert/violation soft-delete)
-      description: |-
-        건강 측정 기록 삭제(soft-delete).
+      description:
+        "- MVP 정책: health_record 삭제 시 연관 alert/record_violation soft-delete
 
-        - 인증: Bearer Access Token
-        - 목적: health_record 삭제 시 연관 alert/record_violation도 함께 soft-delete (MVP 정책)
+        "
       parameters:
         - $ref: "#/components/parameters/HealthRecordId"
       responses:
         "204":
           description: No Content
         "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          description: Not Found - 기록 없음
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                not_found:
-                  summary: Not Found - 기록 없음
-                  value:
-                    code: HEALTH_RECORD_NOT_FOUND
-                    message: HealthRecord not found
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-      operationId: deleteHealthRecord
-      security:
-        - bearerAuth: []
+          $ref: "#/components/responses/UnauthorizedProblem"
   /thresholds:
     get:
       tags:
@@ -616,58 +371,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ThresholdListResponse"
-              examples:
-                success:
-                  summary: 조회 성공
-                  value:
-                    items:
-                      - id: 300
-                        userId: 1
-                        metric: HR
-                        ruleType: range
-                        createdAt: "2026-03-01T08:00:00Z"
-                        deletedAt: null
-                        ruleDetails:
-                          ruleType: range
-                          minValue: 40.0
-                          maxValue: 100.0
         "401":
-          $ref: "#/components/responses/Unauthorized"
-      operationId: listThresholds
-      description: |-
-        Threshold 목록 조회.
-
-        - 인증: Bearer Access Token
-        - 필터: `metric`, `ruleType`
-        - `includeDeleted=true`면 soft-deleted threshold도 포함합니다(버전 이력 확인 목적).
-        - 기본적으로 활성 threshold(deletedAt=null)만 반환합니다.
-      security:
-        - bearerAuth: []
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "400":
+          $ref: "#/components/responses/BadRequestProblem"
     post:
       tags:
         - Threshold
-      summary: Threshold 생성 (확장형 rule_details)
-      description: |-
-        Threshold 생성.
+      summary: Threshold 생성
+      description:
+        "- ruleType에 따라 ruleDetails(oneOf)가 달라집니다. 1.0 MVP에서는 range만 허용합니다.
 
-        - 인증: Bearer Access Token
-        - 목적: 사용자별 기준(임계값) 설정
-        - 제약: 활성 threshold는 (userId, metric, ruleType) 기준으로 1개만 허용(deletedAt=null)
+        - 활성 threshold는 (userId, metric, ruleType) 기준으로 1개만 허용합니다. deletedAt이 null인
+        row만 활성으로 간주합니다."
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/ThresholdCreateRequest"
-            examples:
-              range_hr:
-                summary: HR range threshold 생성
-                value:
-                  metric: HR
-                  ruleDetails:
-                    ruleType: range
-                    minValue: 40
-                    maxValue: 100
       responses:
         "201":
           description: Created
@@ -675,42 +397,64 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Threshold"
-              examples:
-                success:
-                  summary: 생성 성공
-                  value:
-                    id: 300
-                    userId: 1
-                    metric: HR
-                    ruleType: range
-                    createdAt: "2026-03-01T08:00:00Z"
-                    deletedAt: null
-                    ruleDetails:
-                      ruleType: range
-                      minValue: 40.0
-                      maxValue: 100.0
         "409":
-          description: Conflict - 이미 존재하는 threshold
+          description: 동일한 metric/ruleType 조합의 활성 threshold가 이미 존재합니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                threshold_already_exists:
-                  summary: Conflict - 이미 존재하는 threshold
+                example:
                   value:
-                    code: THRESHOLD_ALREADY_EXISTS
-                    message: Active threshold already exists for (metric, ruleType)
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-        "400":
-          $ref: "#/components/responses/BadRequest"
+                    type: http://localhost:8080/problems/threshold-already-exists
+                    title: Threshold already exists
+                    status: 409
+                    detail:
+                      An active threshold for the same metric and rule type
+                      already exists.
+                    instance: /thresholds
+                    errorCode: THRESHOLD_ALREADY_EXISTS
         "401":
-          $ref: "#/components/responses/Unauthorized"
-      operationId: createThreshold
-      security:
-        - bearerAuth: []
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "400":
+          description: 요청 본문 검증 실패, 잘못된 threshold 범위, 또는 지원하지 않는 ruleType
+          content:
+            application/problem+json:
+              schema: *id001
+              examples:
+                validation_error:
+                  value:
+                    type: http://localhost:8080/problems/validation-error
+                    title: Request validation failed
+                    status: 400
+                    detail: Request validation failed.
+                    instance: /thresholds
+                    errorCode: VALIDATION_ERROR
+                    errors:
+                      - name: metric
+                        reason: required
+                invalid_range:
+                  value:
+                    type: http://localhost:8080/problems/invalid-threshold-range
+                    title: Invalid threshold range
+                    status: 400
+                    detail: minValue must be less than or equal to maxValue.
+                    instance: /thresholds
+                    errorCode: INVALID_THRESHOLD_RANGE
+                    errors:
+                      - name: ruleDetails
+                        reason: invalid
+                unsupported_rule_type:
+                  value:
+                    type: http://localhost:8080/problems/invalid-request
+                    title: Invalid request
+                    status: 400
+                    detail: Only range ruleType is supported in MVP 1.0.
+                    instance: /thresholds
+                    errorCode: INVALID_REQUEST
+                    errors:
+                      - name: ruleDetails.ruleType
+                        reason: invalid
   /thresholds/{thresholdId}:
     get:
       tags:
@@ -725,47 +469,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Threshold"
-              examples:
-                success:
-                  summary: 조회 성공
-                  value:
-                    id: 300
-                    userId: 1
-                    metric: HR
-                    ruleType: range
-                    createdAt: "2026-03-01T08:00:00Z"
-                    deletedAt: null
-                    ruleDetails:
-                      ruleType: range
-                      minValue: 40.0
-                      maxValue: 100.0
         "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+          $ref: "#/components/responses/UnauthorizedProblem"
         "404":
-          description: Not Found - threshold 없음
+          description: 해당 threshold를 찾을 수 없습니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                not_found:
-                  summary: Not Found - threshold 없음
+                example:
                   value:
-                    code: THRESHOLD_NOT_FOUND
-                    message: Threshold not found
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-      operationId: getThreshold
-      description: |-
-        Threshold 단건 조회.
-
-        - 인증: Bearer Access Token
-        - 목적: 특정 threshold 조회(삭제된 threshold도 id로 조회 가능)
-      security:
-        - bearerAuth: []
+                    type: http://localhost:8080/problems/threshold-not-found
+                    title: Threshold not found
+                    status: 404
+                    detail: No threshold found for the given id.
+                    instance: /thresholds/10
+                    errorCode: THRESHOLD_NOT_FOUND
     patch:
       tags:
         - Threshold
@@ -778,14 +498,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/ThresholdUpdateRequest"
-            examples:
-              update_range:
-                summary: range 수정
-                value:
-                  ruleDetails:
-                    ruleType: range
-                    minValue: 45
-                    maxValue: 105
       responses:
         "200":
           description: OK
@@ -793,90 +505,96 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Threshold"
-              examples:
-                success:
-                  summary: 수정 성공(신규 버전 반환)
-                  value:
-                    id: 301
-                    userId: 1
-                    metric: HR
-                    ruleType: range
-                    createdAt: "2026-03-01T09:00:00Z"
-                    deletedAt: null
-                    ruleDetails:
-                      ruleType: range
-                      minValue: 45.0
-                      maxValue: 105.0
-        "400":
-          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          description: Not Found - threshold 없음
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "400":
+          description: 요청 본문 검증 실패, 잘못된 threshold 범위, 또는 지원하지 않는 ruleType
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+            application/problem+json:
+              schema: *id001
               examples:
-                not_found:
-                  summary: Not Found - threshold 없음
+                validation_error:
                   value:
-                    code: THRESHOLD_NOT_FOUND
-                    message: Threshold not found
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-      description: |-
-        Threshold 수정(버전 생성).
-
-        - 인증: Bearer Access Token
-        - 방식:
-          1) 기존 threshold를 soft delete(deletedAt=now())
-          2) 수정된 내용으로 새로운 threshold row 생성 후 반환
-        - 수정된 threshold는 향후 record 평가에만 적용됩니다.
-        - 과거 alert/violation은 자동 재평가하지 않습니다.
-      operationId: updateThreshold
-      security:
-        - bearerAuth: []
+                    type: http://localhost:8080/problems/validation-error
+                    title: Request validation failed
+                    status: 400
+                    detail: Request validation failed.
+                    instance: /thresholds/10
+                    errorCode: VALIDATION_ERROR
+                    errors:
+                      - name: ruleDetails
+                        reason: required
+                invalid_range:
+                  value:
+                    type: http://localhost:8080/problems/invalid-threshold-range
+                    title: Invalid threshold range
+                    status: 400
+                    detail: minValue must be less than or equal to maxValue.
+                    instance: /thresholds/10
+                    errorCode: INVALID_THRESHOLD_RANGE
+                    errors:
+                      - name: ruleDetails
+                        reason: invalid
+                unsupported_rule_type:
+                  value:
+                    type: http://localhost:8080/problems/invalid-request
+                    title: Invalid request
+                    status: 400
+                    detail: Only range ruleType is supported in MVP 1.0.
+                    instance: /thresholds/10
+                    errorCode: INVALID_REQUEST
+                    errors:
+                      - name: ruleDetails.ruleType
+                        reason: invalid
+        "404":
+          description: 해당 threshold를 찾을 수 없습니다.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                example:
+                  value:
+                    type: http://localhost:8080/problems/threshold-not-found
+                    title: Threshold not found
+                    status: 404
+                    detail: No threshold found for the given id.
+                    instance: /thresholds/10
+                    errorCode: THRESHOLD_NOT_FOUND
+      description:
+        "- threshold 수정은 버전 방식으로 처리합니다.\n  1) 기존 threshold를 soft delete합니다.\n\
+        \  2) 수정된 내용으로 새로운 threshold row를 생성하여 반환합니다.\n- 수정된 threshold는 향후 record\
+        \ 평가에만 적용됩니다.\n- 과거 alert와 violation은 자동으로 재평가하지 않습니다."
     delete:
       tags:
         - Threshold
-      summary: Threshold 삭제(soft-delete)
-      description: |-
-        Threshold 삭제(soft-delete).
+      summary: Threshold 삭제(soft delete)
+      description: "- threshold 삭제는 soft delete입니다.
 
-        - 인증: Bearer Access Token
         - 삭제된 threshold는 향후 record 평가에서 제외됩니다.
-        - 해당 threshold로 과거에 생성된 alert/violation은 변경/삭제하지 않습니다(평가 이력).
+
+        - 해당 threshold로 과거에 생성된 alert와 violation은 변경하거나 삭제하지 않습니다."
       parameters:
         - $ref: "#/components/parameters/ThresholdId"
       responses:
         "204":
           description: No Content
         "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+          $ref: "#/components/responses/UnauthorizedProblem"
         "404":
-          description: Not Found - threshold 없음
+          description: 해당 threshold를 찾을 수 없습니다.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+            application/problem+json:
+              schema: *id001
               examples:
-                not_found:
-                  summary: Not Found - threshold 없음
+                example:
                   value:
-                    code: THRESHOLD_NOT_FOUND
-                    message: Threshold not found
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-      operationId: deleteThreshold
-      security:
-        - bearerAuth: []
+                    type: http://localhost:8080/problems/threshold-not-found
+                    title: Threshold not found
+                    status: 404
+                    detail: No threshold found for the given id.
+                    instance: /thresholds/10
+                    errorCode: THRESHOLD_NOT_FOUND
   /alerts:
     get:
       tags:
@@ -888,7 +606,6 @@ paths:
         - $ref: "#/components/parameters/ToCreatedAt"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
-        - $ref: "#/components/parameters/SortAlerts"
       responses:
         "200":
           description: OK
@@ -896,55 +613,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AlertListResponse"
-              examples:
-                success:
-                  summary: 목록 조회 성공
-                  value:
-                    items:
-                      - id: 700
-                        healthRecordId: 100
-                        recordType: HR
-                        measuredAt: "2026-03-01T09:00:00Z"
-                        message: HR is above max threshold
-                        readAt: null
-                        createdAt: "2026-03-01T09:01:00Z"
-                    pageInfo:
-                      page: 0
-                      size: 20
-                      totalElements: 1
-                      totalPages: 1
-                      hasPrev: false
-                      hasNext: false
-        "400":
-          description: Bad Request - 기간 필터 오류
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                invalid_range:
-                  summary: Bad Request - 기간 필터 오류
-                  value:
-                    code: VALIDATION_ERROR
-                    message: Invalid request
-                    fieldErrors:
-                      - field: query.fromCreatedAt
-                        reason: invalid
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
         "401":
-          $ref: "#/components/responses/Unauthorized"
-      operationId: listAlerts
-      description: |-
-        Alert 목록 조회.
-
-        - 인증: Bearer Access Token
-        - 기본 조건: `is_silent=false` AND `deleted_at is null` 만 조회(MVP)
-        - 필터: `unreadOnly`, `fromCreatedAt`(inclusive), `toCreatedAt`(exclusive)
-        - 페이지네이션: page(0-based), size(1~100)
-        - 정렬: 기본 createdAt,desc
-      security:
-        - bearerAuth: []
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "400":
+          $ref: "#/components/responses/BadRequestProblem"
   /alerts/{alertId}:
     get:
       tags:
@@ -959,44 +631,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Alert"
-              examples:
-                success:
-                  summary: 조회 성공
-                  value:
-                    id: 700
-                    healthRecordId: 100
-                    recordType: HR
-                    measuredAt: "2026-03-01T09:00:00Z"
-                    message: HR is above max threshold
-                    readAt: null
-                    createdAt: "2026-03-01T09:01:00Z"
         "404":
-          description: Not Found - alert 없음(또는 silent)
+          description: 해당 alert를 찾을 수 없거나 is_silent=true 상태입니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                not_found:
-                  summary: Not Found - alert 없음(또는 silent)
+                example:
                   value:
-                    code: ALERT_NOT_FOUND
-                    message: Alert not found
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
+                    type: http://localhost:8080/problems/alert-not-found
+                    title: Alert not found
+                    status: 404
+                    detail: No alert found for the given id.
+                    instance: /alerts/10
+                    errorCode: ALERT_NOT_FOUND
         "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-      operationId: getAlert
-      description: |-
-        Alert 단건 조회.
-
-        - 인증: Bearer Access Token
-        - 정책: is_silent=true 알림은 404로 취급(MVP).
-      security:
-        - bearerAuth: []
+          $ref: "#/components/responses/UnauthorizedProblem"
     patch:
       tags:
         - Alert
@@ -1009,11 +660,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AlertMarkReadRequest"
-            examples:
-              mark_read:
-                summary: 읽음 처리
-                value:
-                  read: true
       responses:
         "200":
           description: OK
@@ -1021,108 +667,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Alert"
-              examples:
-                success:
-                  summary: 읽음 처리 성공
-                  value:
-                    id: 700
-                    healthRecordId: 100
-                    recordType: HR
-                    measuredAt: "2026-03-01T09:00:00Z"
-                    message: HR is above max threshold
-                    readAt: "2026-03-01T10:00:00Z"
-                    createdAt: "2026-03-01T09:01:00Z"
-        "400":
-          description: Bad Request - 요청 검증 실패
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                missing_read:
-                  summary: Bad Request - 요청 검증 실패
-                  value:
-                    code: VALIDATION_ERROR
-                    message: Invalid request
-                    fieldErrors:
-                      - field: body.read
-                        reason: required
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
         "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "400":
+          $ref: "#/components/responses/ValidationProblem"
         "404":
-          description: Not Found - alert 없음
+          description: 해당 alert를 찾을 수 없습니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                not_found:
-                  summary: Not Found - alert 없음
+                example:
                   value:
-                    code: ALERT_NOT_FOUND
-                    message: Alert not found
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-      operationId: markAlertRead
-      description: |-
-        Alert 읽음 처리.
-
-        - 인증: Bearer Access Token
-        - 목적: readAt 설정(읽음 처리).
-      security:
-        - bearerAuth: []
+                    type: http://localhost:8080/problems/alert-not-found
+                    title: Alert not found
+                    status: 404
+                    detail: No alert found for the given id.
+                    instance: /alerts/10
+                    errorCode: ALERT_NOT_FOUND
     delete:
       tags:
         - Alert
-      summary: Alert 삭제(soft-delete)
-      description: |-
-        Alert 삭제(soft-delete).
-
-        - 인증: Bearer Access Token
-        - 목적: 알림 보관함에서 제거
+      summary: Alert 삭제(soft delete)
+      description: "- 삭제는 deletedAt=now()로 처리합니다."
       parameters:
         - $ref: "#/components/parameters/AlertId"
       responses:
         "204":
           description: No Content
         "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+          $ref: "#/components/responses/UnauthorizedProblem"
         "404":
-          description: Not Found - alert 없음
+          description: 해당 alert를 찾을 수 없습니다.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+            application/problem+json:
+              schema: *id001
               examples:
-                not_found:
-                  summary: Not Found - alert 없음
+                example:
                   value:
-                    code: ALERT_NOT_FOUND
-                    message: Alert not found
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-      operationId: deleteAlert
-      security:
-        - bearerAuth: []
+                    type: http://localhost:8080/problems/alert-not-found
+                    title: Alert not found
+                    status: 404
+                    detail: No alert found for the given id.
+                    instance: /alerts/10
+                    errorCode: ALERT_NOT_FOUND
   /auth/refresh:
     post:
       tags:
         - Auth
       summary: 토큰 재발급 (Refresh Rotation)
-      description: |-
-        토큰 재발급(Refresh Rotation).
+      description:
+        "- refresh_token이 유효하면 새 access_token과 새 refresh_token을 발급
 
-        - 인증: 없음(Access Token 불필요)
-        - 목적: refresh_token이 유효하면 새 access_token과 새 refresh_token 발급
-        - 정책: 기존 refresh_token은 revoked 처리(로테이션)
+        - 기존 refresh_token은 revoked 처리(로테이션)"
       security: []
       requestBody:
         required: true
@@ -1130,11 +728,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/RefreshRequest"
-            examples:
-              success:
-                summary: 재발급 요청
-                value:
-                  refreshToken: rft_01HXYZEXAMPLE
       responses:
         "200":
           description: OK
@@ -1142,45 +735,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
-              examples:
-                success:
-                  summary: 재발급 성공
-                  value:
-                    accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.NEW.ACCESS.TOKEN
-                    tokenType: Bearer
-                    refreshToken: rft_01HXYZNEW
-                    user:
-                      id: 1
-                      email: user@example.com
-                      createdAt: "2026-03-01T10:00:00Z"
         "401":
-          description: Unauthorized - refresh token 무효/만료/폐기
+          description: Refresh token이 무효, 만료 또는 폐기되었습니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                invalid_refresh_token:
-                  summary: Unauthorized - refresh token 무효/만료/폐기
+                example:
                   value:
-                    code: INVALID_REFRESH_TOKEN
-                    message: Refresh token is invalid or expired
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
+                    type: http://localhost:8080/problems/invalid-refresh-token
+                    title: Invalid refresh token
+                    status: 401
+                    detail: Refresh token is invalid, expired, or revoked.
+                    instance: /auth/refresh
+                    errorCode: INVALID_REFRESH_TOKEN
         "400":
-          $ref: "#/components/responses/BadRequest"
-      operationId: refreshToken
+          $ref: "#/components/responses/ValidationProblem"
   /auth/logout:
     post:
       tags:
         - Auth
       summary: 로그아웃 (Refresh Token 폐기)
-      description: |-
-        로그아웃(Refresh Token 폐기).
-
-        - 인증: 없음(Access Token 불필요)
-        - 목적: refresh token을 revoked 처리하여 재사용 불가하게 함
+      description: logout은 refresh token만으로 처리(access 인증 제거)
       security: []
       requestBody:
         required: true
@@ -1188,47 +765,42 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/LogoutRequest"
-            examples:
-              success:
-                summary: 로그아웃 요청
-                value:
-                  refreshToken: rft_01HXYZEXAMPLE
       responses:
         "204":
           description: No Content
         "400":
-          description: Bad Request - 형식 오류
+          description: 요청 본문 검증 실패
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                missing_refresh_token:
-                  summary: Bad Request - 형식 오류
+                example:
                   value:
-                    code: VALIDATION_ERROR
-                    message: Invalid request
-                    fieldErrors:
-                      - field: body.refreshToken
+                    type: http://localhost:8080/problems/validation-error
+                    title: Request validation failed
+                    status: 400
+                    detail: Request validation failed.
+                    instance: /auth/logout
+                    errorCode: VALIDATION_ERROR
+                    errors:
+                      - name: refreshToken
                         reason: required
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
         "401":
-          description: Unauthorized - refresh token 무효/만료/폐기
+          description: Refresh token이 무효, 만료 또는 폐기되었습니다.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/Problem"
               examples:
-                invalid_refresh_token:
-                  summary: Unauthorized - refresh token 무효/만료/폐기
+                example:
                   value:
-                    code: INVALID_REFRESH_TOKEN
-                    message: Refresh token is invalid or expired
-                    fieldErrors: []
-                    traceId: f6d6b0e6b9b64c65
-                    timestamp: "2026-03-02T12:34:56Z"
-      operationId: logout
+                    type: http://localhost:8080/problems/invalid-refresh-token
+                    title: Invalid refresh token
+                    status: 401
+                    detail: Refresh token is invalid, expired, or revoked.
+                    instance: /auth/logout
+                    errorCode: INVALID_REFRESH_TOKEN
 components:
   securitySchemes:
     bearerAuth:
@@ -1264,7 +836,6 @@ components:
         type: integer
         minimum: 0
         default: 0
-      description: 0-based 페이지 인덱스
     Size:
       name: size
       in: query
@@ -1273,161 +844,139 @@ components:
         minimum: 1
         maximum: 100
         default: 20
-      description: 페이지 크기(1~100)
     Type:
       name: type
       in: query
       schema:
         $ref: "#/components/schemas/HealthRecordType"
-      description: 기록 타입 필터(HR/BP)
     Metric:
       name: metric
       in: query
       schema:
         $ref: "#/components/schemas/Metric"
-      description: Threshold 대상 지표
     RuleType:
-      name: ruleType
+      name: rule_type
       in: query
       schema:
         $ref: "#/components/schemas/RuleType"
-      description: "규칙 타입(MVP: range)"
     UnreadOnly:
-      name: unreadOnly
+      name: unread_only
       in: query
       schema:
         type: boolean
         default: false
-      description: true면 읽지 않은 알림만 조회(readAt is null)
     FromMeasuredAt:
-      name: fromMeasuredAt
+      name: from_measured_at
       in: query
       schema:
         type: string
         format: date-time
-      description: 측정 시각 필터 시작(from, inclusive). ISO-8601 date-time
     ToMeasuredAt:
-      name: toMeasuredAt
+      name: to_measured_at
       in: query
       schema:
         type: string
         format: date-time
-      description: 측정 시각 필터 끝(to, exclusive). ISO-8601 date-time
     FromCreatedAt:
-      name: fromCreatedAt
+      name: from_created_at
       in: query
       schema:
         type: string
         format: date-time
-      description: 생성 시각 필터 시작(from, inclusive). ISO-8601 date-time
     ToCreatedAt:
-      name: toCreatedAt
+      name: to_created_at
       in: query
       schema:
         type: string
         format: date-time
-      description: 생성 시각 필터 끝(to, exclusive). ISO-8601 date-time
     IncludeDeleted:
-      name: includeDeleted
+      name: include_deleted
       in: query
       schema:
         type: boolean
         default: false
       description: true면 soft-deleted(deleted_at not null) threshold도 포함
-    SortHealthRecords:
-      name: sort
-      in: query
-      required: false
-      description: |-
-        정렬 기준. 반복 가능. 형식: `field,(asc|desc)`.
-
-        허용 field: `measuredAt`, `createdAt`, `id`.
-
-        기본값: `measuredAt,desc`
-      schema:
-        type: array
-        items:
-          type: string
-          example: measuredAt,desc
-        default:
-          - measuredAt,desc
-      style: form
-      explode: true
-    SortAlerts:
-      name: sort
-      in: query
-      required: false
-      description: |-
-        정렬 기준. 반복 가능. 형식: `field,(asc|desc)`.
-
-        허용 field: `createdAt`, `readAt`, `id`.
-
-        기본값: `createdAt,desc`
-      schema:
-        type: array
-        items:
-          type: string
-          example: createdAt,desc
-        default:
-          - createdAt,desc
-      style: form
-      explode: true
   schemas:
-    ErrorResponse:
+    Problem:
       type: object
-      additionalProperties: false
+      description:
+        RFC 9457 Problem Details 기반 에러 응답입니다. errorCode는 서비스 도메인 에러코드이며,
+        errors는 검증 오류에서만 포함됩니다.
       properties:
-        code:
-          $ref: "#/components/schemas/ErrorCode"
-        message:
+        type:
           type: string
-          description: 사람이 읽기 좋은 요약 메시지. validation 에러에서는 포괄적인 요약을 사용하고, 비검증 에러에서는 사용자의 다음 행동을 이해할 수 있는 짧고 직접적인 문구를 사용합니다.
-        fieldErrors:
+          format: uri
+          description:
+            문제 유형을 식별하는 URI입니다. 클라이언트는 detail 문자열이 아니라 type 또는 errorCode로
+            분기해야 합니다.
+          example: http://localhost:8080/problems/validation-error
+        title:
+          type: string
+          description: 문제 유형의 짧은 요약입니다.
+          example: Request validation failed
+        status:
+          type: integer
+          format: int32
+          description: HTTP 상태 코드입니다.
+          example: 400
+        detail:
+          type: string
+          description: 이번 요청에서 발생한 문제를 사람이 읽을 수 있도록 설명한 메시지입니다.
+          example: Request validation failed.
+        instance:
+          type: string
+          format: uri-reference
+          description: 문제가 발생한 요청 경로 또는 요청 인스턴스 식별자입니다.
+          example: /health-records
+        errorCode:
+          type: string
+          description:
+            서비스 도메인 에러 코드입니다. Problem Details의 표준 필드는 아니며, 클라이언트의 안정적인
+            분기와 로그 분석을 위해 확장 필드로 제공합니다.
+          example: VALIDATION_ERROR
+          enum:
+            - VALIDATION_ERROR
+            - INVALID_REQUEST
+            - EMAIL_ALREADY_EXISTS
+            - INVALID_CREDENTIALS
+            - ACCOUNT_DELETED
+            - INVALID_REFRESH_TOKEN
+            - UNAUTHORIZED
+            - HEALTH_RECORD_NOT_FOUND
+            - EDIT_WINDOW_EXPIRED
+            - HEALTH_RECORD_TYPE_MISMATCH
+            - THRESHOLD_NOT_FOUND
+            - THRESHOLD_ALREADY_EXISTS
+            - INVALID_THRESHOLD_RANGE
+            - ALERT_NOT_FOUND
+            - INTERNAL_SERVER_ERROR
+        errors:
           type: array
-          description: 입력값(body/query/path) 검증 실패 목록. `VALIDATION_ERROR` 등 검증 실패에서만 채우며, 비즈니스 에러에서는 빈 배열입니다. 클라이언트는 이 목록을 사용해 필드별 오류를 표시합니다.
+          description: 검증 오류에서만 포함됩니다. 각 항목은 어떤 입력 필드가 왜 거부되었는지를 나타냅니다.
           items:
-            $ref: "#/components/schemas/FieldError"
-        traceId:
-          type: string
-          nullable: true
-          description: 서버 로그 상관관계 추적용 ID(옵션).
-        timestamp:
-          type: string
-          format: date-time
-          description: 에러 발생 시각(UTC)
+            $ref: "#/components/schemas/InvalidParam"
       required:
-        - code
-        - message
-        - fieldErrors
-        - timestamp
-    FieldError:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+        - errorCode
+    InvalidParam:
       type: object
+      description: 검증 실패한 개별 입력 필드 정보입니다.
       additionalProperties: false
       properties:
-        field:
+        name:
           type: string
-          description: "오류가 발생한 입력 위치. `body.`, `query.`, `path.` 접두어를 포함해 클라이언트가 입력 컴포넌트에 바로 매핑할 수 있는 이름을 사용합니다. (예: body.diastolic, query.fromMeasuredAt)"
-          example: body.diastolic
+          description: 검증에 실패한 입력 필드 또는 파라미터 이름
+          example: diastolic
         reason:
           type: string
-          description: 입력 검증 실패의 머신-리더블한 사유 코드. 클라이언트는 이 값을 기준으로 필드별 문구를 해석하며, 최상위 `message`를 파싱하지 않습니다. 상호 연관된 값의 검증 실패는 대표 필드 하나에만 매핑합니다. 기간 범위 검증에서는 시작 필드(`from...`)를 사용합니다.
-          enum:
-            - required
-            - invalid
-            - invalid
+          description: "안정적인 machine-friendly reason code입니다. 현재는 required 또는 invalid를 사용합니다."
           example: required
-        rejectedValue:
-          nullable: true
-          description: 거부된 입력값(옵션). 민감정보 포함 금지.
-          oneOf:
-            - type: string
-            - type: number
-            - type: integer
-            - type: boolean
-            - type: object
-            - type: array
       required:
-        - field
+        - name
         - reason
     PageInfo:
       type: object
@@ -1435,25 +984,19 @@ components:
         page:
           type: integer
           example: 0
-          description: 0-based 페이지 인덱스
         size:
           type: integer
           example: 20
-          description: 페이지 크기
         totalElements:
           type: integer
           example: 123
-          description: 전체 원소 수
         totalPages:
           type: integer
           example: 7
-          description: 전체 페이지 수
         hasPrev:
           type: boolean
-          description: 이전 페이지 존재 여부
         hasNext:
           type: boolean
-          description: 다음 페이지 존재 여부
       required:
         - page
         - size
@@ -1461,7 +1004,6 @@ components:
         - totalPages
         - hasPrev
         - hasNext
-      additionalProperties: false
     RegisterRequest:
       type: object
       properties:
@@ -1469,60 +1011,48 @@ components:
           type: string
           format: email
           maxLength: 320
-          description: 로그인에 사용할 이메일
         password:
           type: string
           minLength: 8
           maxLength: 72
-          format: password
-          description: 비밀번호(서버에서 해시 저장). 8~72자 권장
       required:
         - email
         - password
-      additionalProperties: false
     LoginRequest:
       type: object
       properties:
         email:
           type: string
           format: email
-          description: 등록된 이메일
         password:
           type: string
-          format: password
-          description: "비밀번호(평문 전송 금지: HTTPS 필수)"
       required:
         - email
         - password
-      additionalProperties: false
     AuthResponse:
       type: object
       properties:
         accessToken:
           type: string
-          description: JWT Access Token (Authorization 헤더에 Bearer로 전달)
         tokenType:
           type: string
           example: Bearer
-          description: 항상 Bearer
         user:
           $ref: "#/components/schemas/User"
         refreshToken:
           type: string
-          description: Refresh Token (재발급/로그아웃에 사용). 서버는 해시만 저장
+          description: 재발급/로그아웃에 사용. 원문 저장 금지(서버는 해시 저장)
       required:
         - accessToken
         - user
         - tokenType
         - refreshToken
-      additionalProperties: false
     User:
       type: object
       properties:
         id:
           type: integer
           format: int64
-          description: 사용자 ID
         email:
           type: string
           format: email
@@ -1530,12 +1060,10 @@ components:
         createdAt:
           type: string
           format: date-time
-          description: 가입 시각(UTC)
       required:
         - id
         - email
         - createdAt
-      additionalProperties: false
     HealthRecordType:
       type: string
       enum:
@@ -1557,21 +1085,19 @@ components:
         id:
           type: integer
           format: int64
-          description: 기록 ID
         userId:
           type: integer
           format: int64
-          description: 소유자 사용자 ID
         type:
           $ref: "#/components/schemas/HealthRecordType"
         measuredAt:
           type: string
           format: date-time
-          description: 측정 시각(UTC)
+          description: UTC
         createdAt:
           type: string
           format: date-time
-          description: 생성 시각(UTC). 수정 가능 시간 계산 기준
+          description: UTC
         bpm:
           type: integer
           minimum: 1
@@ -1594,7 +1120,6 @@ components:
           type: string
           nullable: true
           maxLength: 500
-          description: 사용자 메모(옵션)
       required:
         - id
         - userId
@@ -1602,7 +1127,6 @@ components:
         - measuredAt
         - createdAt
       description: 단일 테이블 모델. type=HR이면 bpm 필수, type=BP이면 systolic/diastolic 필수
-      additionalProperties: false
     HealthRecordDetailResponse:
       type: object
       properties:
@@ -1615,22 +1139,42 @@ components:
       required:
         - healthRecord
         - violations
-      additionalProperties: false
     HealthRecordCreateRequest:
-      oneOf:
-        - $ref: "#/components/schemas/HealthRecordCreateHR"
-        - $ref: "#/components/schemas/HealthRecordCreateBP"
-      description: HR 또는 BP 중 하나의 완성형 생성 요청
-      discriminator:
-        propertyName: type
-        mapping:
-          HR: "#/components/schemas/HealthRecordCreateHR"
-          BP: "#/components/schemas/HealthRecordCreateBP"
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/HealthRecordType"
+        measuredAt:
+          type: string
+          format: date-time
+        bpm:
+          type: integer
+          minimum: 1
+          maximum: 300
+          nullable: true
+        systolic:
+          type: integer
+          minimum: 50
+          maximum: 300
+          nullable: true
+        diastolic:
+          type: integer
+          minimum: 30
+          maximum: 200
+          nullable: true
+        memo:
+          type: string
+          nullable: true
+          maxLength: 500
+      required:
+        - type
+        - measuredAt
+      description: type=HR이면 bpm이 필수이고, type=BP이면 systolic과 diastolic이 모두 필수입니다.
     HealthRecordUpdateRequest:
       oneOf:
         - $ref: "#/components/schemas/HealthRecordUpdateHR"
         - $ref: "#/components/schemas/HealthRecordUpdateBP"
-      description: HR 또는 BP 중 하나의 완성형 업데이트 요청
+      description: HR 또는 BP 중 하나의 완성형 업데이트 요청입니다. type에 맞지 않는 필드 조합은 400으로 처리합니다.
     HealthRecordUpdateHR:
       type: object
       additionalProperties: false
@@ -1684,7 +1228,6 @@ components:
       required:
         - items
         - pageInfo
-      additionalProperties: false
     RecordViolation:
       type: object
       properties:
@@ -1710,14 +1253,13 @@ components:
           enum:
             - below_min
             - above_max
+            - out_of_range
         evaluatedAt:
           type: string
           format: date-time
         message:
           type: string
           description: UI 표시용 문구(서버에서 조합)
-          nullable: false
-          example: HR is above max threshold (measured=120, max=100)
       required:
         - id
         - healthRecordId
@@ -1726,8 +1268,6 @@ components:
         - ruleType
         - measuredValue
         - evaluatedAt
-        - message
-      additionalProperties: false
     ViolationRuleSummary:
       oneOf:
         - $ref: "#/components/schemas/ViolationRangeSummary"
@@ -1772,14 +1312,8 @@ components:
         createdAt:
           type: string
           format: date-time
-          description: 생성 시각(UTC). 버전 row 생성 시각
         ruleDetails:
           $ref: "#/components/schemas/ThresholdRuleDetails"
-        deletedAt:
-          type: string
-          format: date-time
-          nullable: true
-          description: soft-delete 시각(UTC). 활성 threshold는 null
       required:
         - id
         - userId
@@ -1787,57 +1321,42 @@ components:
         - ruleType
         - createdAt
         - ruleDetails
-      additionalProperties: false
     ThresholdRuleDetails:
       oneOf:
         - $ref: "#/components/schemas/ThresholdRangeRule"
       description: 1.0 MVP에서는 range rule만 지원
-      discriminator:
-        propertyName: ruleType
-        mapping:
-          range: "#/components/schemas/ThresholdRangeRule"
     ThresholdRangeRule:
       type: object
-      additionalProperties: false
       properties:
         ruleType:
           type: string
           enum:
             - range
-          default: range
-          description: MVP에서는 range만 지원
         minValue:
           type: number
           format: double
           nullable: true
-          description: 최소 허용값(없으면 하한 없음)
         maxValue:
           type: number
           format: double
           nullable: true
-          description: 최대 허용값(없으면 상한 없음)
-      description: range 규칙. minValue 또는 maxValue 중 최소 하나는 필요(둘 다 null이면 400).
     ThresholdCreateRequest:
       type: object
       properties:
         metric:
           $ref: "#/components/schemas/Metric"
-          description: 대상 지표
         ruleDetails:
           $ref: "#/components/schemas/ThresholdRuleDetails"
-          description: "규칙 상세(MVP: range만 지원)"
       required:
         - metric
         - ruleDetails
-      description: 사용자별 Threshold 생성. (userId, metric, ruleType) 기준 활성 Threshold는 1개만 허용
-      additionalProperties: false
+      description: ruleDetails.ruleType을 보내면 range여야 하며, 생략 시 기본값은 range입니다.
     ThresholdUpdateRequest:
       type: object
       properties:
         ruleDetails:
           $ref: "#/components/schemas/ThresholdRuleDetails"
-      description: Threshold 수정(버전 생성). ruleDetails만 변경 가능
-      additionalProperties: false
+      description: ruleDetails.ruleType을 보내면 range여야 하며, 생략 시 기본값은 range입니다.
     ThresholdListResponse:
       type: object
       properties:
@@ -1847,7 +1366,6 @@ components:
             $ref: "#/components/schemas/Threshold"
       required:
         - items
-      additionalProperties: false
     Alert:
       type: object
       properties:
@@ -1864,16 +1382,13 @@ components:
           format: date-time
         message:
           type: string
-          description: UI 표시용 문구(서버에서 조합)
         readAt:
           type: string
           format: date-time
           nullable: true
-          description: 읽음 처리 시각(UTC). 읽지 않음이면 null
         createdAt:
           type: string
           format: date-time
-          description: 알림 생성 시각(UTC)
       required:
         - id
         - healthRecordId
@@ -1882,17 +1397,14 @@ components:
         - message
         - readAt
         - createdAt
-      additionalProperties: false
     AlertMarkReadRequest:
       type: object
       properties:
         read:
           type: boolean
           example: true
-          description: true면 읽음 처리. false로 되돌리기는 MVP 범위에서 비권장(서버 정책에 따라 400 가능)
       required:
         - read
-      additionalProperties: false
     AlertListResponse:
       type: object
       properties:
@@ -1905,193 +1417,66 @@ components:
       required:
         - items
         - pageInfo
-      additionalProperties: false
     RefreshRequest:
       type: object
       properties:
         refreshToken:
           type: string
-          description: Refresh Token(원문 저장 금지).
       required:
         - refreshToken
-      additionalProperties: false
     LogoutRequest:
       type: object
       properties:
         refreshToken:
           type: string
-          description: 폐기할 Refresh Token
       required:
         - refreshToken
-      additionalProperties: false
-    ErrorCode:
-      type: string
-      enum:
-        - VALIDATION_ERROR
-        - INVALID_REQUEST
-        - EMAIL_ALREADY_EXISTS
-        - INVALID_CREDENTIALS
-        - INVALID_REFRESH_TOKEN
-        - UNAUTHORIZED
-        - HEALTH_RECORD_NOT_FOUND
-        - EDIT_WINDOW_EXPIRED
-        - HEALTH_RECORD_TYPE_MISMATCH
-        - THRESHOLD_NOT_FOUND
-        - THRESHOLD_ALREADY_EXISTS
-        - INVALID_THRESHOLD_RANGE
-        - ALERT_NOT_FOUND
-        - INTERNAL_ERROR
-      description: 애플리케이션 에러 코드. HTTP 상태코드와 함께 사용하여 클라이언트가 안정적으로 분기할 수 있도록 합니다.
-    HealthRecordCreateHR:
-      type: object
-      additionalProperties: false
-      properties:
-        type:
-          type: string
-          enum:
-            - HR
-          example: HR
-        measuredAt:
-          type: string
-          format: date-time
-          description: 측정 시각(ISO-8601, timezone 포함). 서버는 UTC로 저장.
-        bpm:
-          type: integer
-          minimum: 1
-          maximum: 300
-          description: 심박수(bpm). type=HR일 때 필수
-        memo:
-          type: string
-          nullable: true
-          maxLength: 500
-      required:
-        - type
-        - measuredAt
-        - bpm
-      description: 심박(Heart Rate) 기록 생성
-    HealthRecordCreateBP:
-      type: object
-      additionalProperties: false
-      properties:
-        type:
-          type: string
-          enum:
-            - BP
-          example: BP
-        measuredAt:
-          type: string
-          format: date-time
-          description: 측정 시각(ISO-8601, timezone 포함). 서버는 UTC로 저장.
-        systolic:
-          type: integer
-          minimum: 50
-          maximum: 300
-          description: 수축기 혈압. type=BP일 때 필수
-        diastolic:
-          type: integer
-          minimum: 30
-          maximum: 200
-          description: 이완기 혈압. type=BP일 때 필수
-        memo:
-          type: string
-          nullable: true
-          maxLength: 500
-      required:
-        - type
-        - measuredAt
-        - systolic
-        - diastolic
-      description: 혈압(Blood Pressure) 기록 생성
   responses:
-    BadRequest:
-      description: Bad Request (요청 형식 오류/검증 실패)
+    BadRequestProblem:
+      description: 요청 형식 오류, 잘못된 파라미터 형식, 또는 바인딩 실패
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: "#/components/schemas/Problem"
           examples:
-            validation_error:
-              summary: Validation error
+            example:
               value:
-                code: VALIDATION_ERROR
-                message: Invalid request
-                fieldErrors:
-                  - field: body.measuredAt
-                    reason: invalid
-                traceId: f6d6b0e6b9b64c65
-                timestamp: "2026-03-02T12:34:56Z"
-    Unauthorized:
-      description: Unauthorized (인증 실패/만료)
+                type: http://localhost:8080/problems/invalid-request
+                title: Invalid request
+                status: 400
+                detail: Request is malformed or contains an invalid parameter.
+                instance: /resource
+                errorCode: INVALID_REQUEST
+    ValidationProblem:
+      description: 요청 본문 또는 파라미터 검증 실패. errors 배열은 검증 오류에서만 포함됩니다.
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: "#/components/schemas/Problem"
           examples:
-            unauthorized:
-              summary: Missing/invalid access token
+            example:
               value:
-                code: UNAUTHORIZED
-                message: Authentication required
-                fieldErrors: []
-                traceId: f6d6b0e6b9b64c65
-                timestamp: "2026-03-02T12:34:56Z"
-    Forbidden:
-      description: Forbidden (권한 없음)
+                type: http://localhost:8080/problems/validation-error
+                title: Request validation failed
+                status: 400
+                detail: Request validation failed.
+                instance: /resource
+                errorCode: VALIDATION_ERROR
+                errors:
+                  - name: fieldName
+                    reason: required
+    UnauthorizedProblem:
+      description: 인증 정보가 없거나 access token이 유효하지 않음
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: "#/components/schemas/Problem"
           examples:
-            forbidden:
-              summary: Not the resource owner
+            example:
               value:
-                code: FORBIDDEN
-                message: You do not have permission to access this resource
-                fieldErrors: []
-                traceId: f6d6b0e6b9b64c65
-                timestamp: "2026-03-02T12:34:56Z"
-    NotFound:
-      description: Not Found (리소스 없음)
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          examples:
-            not_found:
-              summary: Resource not found
-              value:
-                code: RESOURCE_NOT_FOUND
-                message: Resource not found
-                fieldErrors: []
-                traceId: f6d6b0e6b9b64c65
-                timestamp: "2026-03-02T12:34:56Z"
-    Conflict:
-      description: Conflict (비즈니스 충돌/중복)
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          examples:
-            conflict:
-              summary: Business conflict
-              value:
-                code: CONFLICT
-                message: Conflict occurred
-                fieldErrors: []
-                traceId: f6d6b0e6b9b64c65
-                timestamp: "2026-03-02T12:34:56Z"
-    InternalServerError:
-      description: Internal Server Error
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          examples:
-            internal:
-              summary: Unexpected error
-              value:
-                code: INTERNAL_ERROR
-                message: Unexpected error
-                fieldErrors: []
-                traceId: f6d6b0e6b9b64c65
-                timestamp: "2026-03-02T12:34:56Z"
+                type: http://localhost:8080/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Authentication is required or the token is invalid.
+                instance: /resource
+                errorCode: UNAUTHORIZED

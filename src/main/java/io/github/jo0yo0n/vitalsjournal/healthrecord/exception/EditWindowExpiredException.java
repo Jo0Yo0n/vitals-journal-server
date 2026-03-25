@@ -7,8 +7,4 @@ public class EditWindowExpiredException extends BusinessException {
   public EditWindowExpiredException() {
     super(ErrorCode.EDIT_WINDOW_EXPIRED);
   }
-
-  public EditWindowExpiredException(String message) {
-    super(ErrorCode.EDIT_WINDOW_EXPIRED, message);
-  }
 }
