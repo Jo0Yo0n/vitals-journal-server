@@ -8,9 +8,19 @@ spring:
     password: ${DB_PASSWORD:vitals}
     driver-class-name: org.postgresql.Driver
 
+  mvc:
+    problemdetails:
+      enabled: true
+
+  web:
+    error:
+      include-message: never
+      include-stacktrace: never
+      include-exception: false
+
   jpa:
-      hibernate:
-        ddl-auto: validate
+    hibernate:
+      ddl-auto: validate
 
   flyway:
     enabled: true

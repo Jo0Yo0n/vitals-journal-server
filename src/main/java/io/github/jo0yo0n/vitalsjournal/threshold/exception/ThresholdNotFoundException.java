@@ -7,8 +7,4 @@ public class ThresholdNotFoundException extends BusinessException {
   public ThresholdNotFoundException() {
     super(ErrorCode.THRESHOLD_NOT_FOUND);
   }
-
-  public ThresholdNotFoundException(String message) {
-    super(ErrorCode.THRESHOLD_NOT_FOUND, message);
-  }
 }

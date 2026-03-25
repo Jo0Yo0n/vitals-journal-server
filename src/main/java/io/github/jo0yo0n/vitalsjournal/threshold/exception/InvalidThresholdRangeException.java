@@ -7,8 +7,4 @@ public class InvalidThresholdRangeException extends BusinessException {
   public InvalidThresholdRangeException() {
     super(ErrorCode.INVALID_THRESHOLD_RANGE);
   }
-
-  public InvalidThresholdRangeException(String message) {
-    super(ErrorCode.INVALID_THRESHOLD_RANGE, message);
-  }
 }

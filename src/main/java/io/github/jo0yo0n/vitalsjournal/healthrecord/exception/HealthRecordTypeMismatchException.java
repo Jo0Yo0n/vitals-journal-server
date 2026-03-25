@@ -8,8 +8,4 @@ public class HealthRecordTypeMismatchException extends BusinessException {
 
     super(ErrorCode.HEALTH_RECORD_TYPE_MISMATCH);
   }
-
-  public HealthRecordTypeMismatchException(String message) {
-    super(ErrorCode.HEALTH_RECORD_TYPE_MISMATCH, message);
-  }
 }

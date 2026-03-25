@@ -7,8 +7,4 @@ public class ThresholdAlreadyExistsException extends BusinessException {
   public ThresholdAlreadyExistsException() {
     super(ErrorCode.THRESHOLD_ALREADY_EXISTS);
   }
-
-  public ThresholdAlreadyExistsException(String message) {
-    super(ErrorCode.THRESHOLD_ALREADY_EXISTS, message);
-  }
 }
