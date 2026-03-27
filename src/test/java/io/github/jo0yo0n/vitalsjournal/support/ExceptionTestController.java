@@ -38,7 +38,7 @@ public class ExceptionTestController {
   }
 
   @GetMapping("/test/date-range")
-  public String getDateRange(@Valid @ModelAttribute DateRangeRequest request) {
+  String getDateRange(@Valid @ModelAttribute DateRangeRequest request) {
     return "ok";
   }
 
