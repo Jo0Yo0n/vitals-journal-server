@@ -20,7 +20,7 @@ public class ValidDateRangeValidator
 
     context.disableDefaultConstraintViolation();
     context
-        .buildConstraintViolationWithTemplate("invalid")
+        .buildConstraintViolationWithTemplate(context.getDefaultConstraintMessageTemplate())
         .addPropertyNode(fromField)
         .addConstraintViolation();
 
