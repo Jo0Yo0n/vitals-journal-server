@@ -2,15 +2,22 @@ package io.github.jo0yo0n.vitalsjournal.common.validation;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;
+import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-// from 필드의 값이 to 필드의 값보다 이전인지 검증하는 데 사용하는 커스텀 제약 어노테이션
-// from과 to 필드의 이름은 기본값으로 "from"과 "to"로 설정되어 있지만, 필요에 따라 어노테이션을 사용할 때 다른 필드 이름으로 지정할 수 있음
-// ValidDateRangeValidator에서 from과 to 필드의 값을 가져오기 위해 DateRangeValidatable 인터페이스를 구현해야 함
-@Target(ElementType.TYPE)
+/**
+ * from 시점이 to 시점보다 늦지 않은지(from <= to) 검증하는 클래스 레벨 제약이다.
+ *
+ * <p>제약 위반은 기본적으로 "from" 프로퍼티에 매핑되며, {@link #fromField()}로 변경할 수 있다.
+ *
+ * <p>검증 대상은 {@link DateRangeValidatable}을 구현해야 하며, 시작/종료 시점은 각각 {@link
+ * DateRangeValidatable#from()}와 {@link DateRangeValidatable#to()}를 통해 제공한다.
+ */
+@Documented
+@Target({ElementType.TYPE, ElementType.ANNOTATION_TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Constraint(validatedBy = ValidDateRangeValidator.class)
 public @interface ValidDateRange {

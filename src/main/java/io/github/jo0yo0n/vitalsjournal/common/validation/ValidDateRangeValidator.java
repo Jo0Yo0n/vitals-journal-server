@@ -6,7 +6,7 @@ import jakarta.validation.ConstraintValidatorContext;
 public class ValidDateRangeValidator
     implements ConstraintValidator<ValidDateRange, DateRangeValidatable> {
 
-  String fromField;
+  private String fromField;
 
   @Override
   public boolean isValid(DateRangeValidatable value, ConstraintValidatorContext context) {
@@ -14,7 +14,10 @@ public class ValidDateRangeValidator
       return true; // @NotNull 등의 다른 제약 조건이 처리하도록 허용
     }
 
-    if (value.from().isBefore(value.to()) || value.from().isEqual(value.to())) {
+    var from = value.from();
+    var to = value.to();
+
+    if (from.isBefore(to) || from.isEqual(to)) {
       return true;
     }
 

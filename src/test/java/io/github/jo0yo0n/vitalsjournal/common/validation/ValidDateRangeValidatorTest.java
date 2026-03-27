@@ -4,13 +4,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import java.time.LocalDateTime;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class ValidDateRangeValidatorTest {
 
-  private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+  private static ValidatorFactory validatorFactory;
+  private static Validator validator;
+
+  @BeforeAll
+  static void setupValidator() {
+    validatorFactory = Validation.buildDefaultValidatorFactory();
+    validator = validatorFactory.getValidator();
+  }
+
+  @AfterAll
+  static void tearDownValidator() {
+    if (validatorFactory != null) {
+      validatorFactory.close();
+    }
+  }
 
   @DisplayName("from이 to보다 이전이면 검증에 성공")
   @Test
