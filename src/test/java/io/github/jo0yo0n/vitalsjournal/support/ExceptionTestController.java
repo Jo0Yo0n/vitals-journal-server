@@ -42,7 +42,6 @@ public class ExceptionTestController {
     return "ok";
   }
 
-
   record TestRequest(@NotBlank String name) {}
 
   @ValidDateRange(fromField = "startedAt")
