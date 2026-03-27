@@ -14,7 +14,7 @@ public class ValidDateRangeValidator
       return true; // @NotNull 등의 다른 제약 조건이 처리하도록 허용
     }
 
-    if (value.from().isBefore(value.to())) {
+    if (value.from().isBefore(value.to()) || value.from().isEqual(value.to())) {
       return true;
     }
 
