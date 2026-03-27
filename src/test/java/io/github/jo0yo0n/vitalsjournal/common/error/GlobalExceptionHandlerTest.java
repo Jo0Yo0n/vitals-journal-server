@@ -88,4 +88,22 @@ class GlobalExceptionHandlerTest {
         .andExpect(jsonPath("$.instance").value("/test/body"))
         .andExpect(jsonPath("$.errors").doesNotExist());
   }
+
+  @DisplayName("from이 to보다 이후인 경우 날짜 범위 검증 실패는 validation problem detail을 반환한다")
+  @Test
+  void handleDateRangeValidationFailure() throws Exception {
+    mockMvc
+        .perform(
+            get("/test/date-range")
+                .param("startedAt", "2026-03-28T10:00:00")
+                .param("endedAt", "2026-03-27T10:00:00"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.type").value("http://localhost:8080/problems/validation-error"))
+        .andExpect(jsonPath("$.title").value("Request validation failed"))
+        .andExpect(jsonPath("$.detail").value("Request validation failed."))
+        .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.instance").value("/test/date-range"))
+        .andExpect(jsonPath("$.errors[0].name").value("startedAt"))
+        .andExpect(jsonPath("$.errors[0].reason").value("invalid"));
+  }
 }
