@@ -23,7 +23,7 @@
 - deleted_at
   - TIMESTAMPZ NULL
 
-➕ `CREATE UNIQUE INDEX ux_user_email_active ON “users”(email) WHERE deleted_at IS NULL;`
+➕ `CREATE UNIQUE INDEX ux_users_email_active ON users(email) WHERE deleted_at IS NULL;`
 ➕ `CREATE UNIQUE INDEX ux_users_nickname_active ON users(nickname) WHERE deleted_at IS NULL;`
 
 ## health_record
