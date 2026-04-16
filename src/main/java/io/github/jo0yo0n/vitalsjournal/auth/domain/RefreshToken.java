@@ -1,5 +1,6 @@
 package io.github.jo0yo0n.vitalsjournal.auth.domain;
 
+import io.github.jo0yo0n.vitalsjournal.common.domain.CreatedTimeEntity;
 import io.github.jo0yo0n.vitalsjournal.user.domain.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,13 +13,12 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Table(name = "refresh_token")
 @EntityListeners(AuditingEntityListener.class)
-public class RefreshToken {
+public class RefreshToken extends CreatedTimeEntity {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,7 +28,7 @@ public class RefreshToken {
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
-  @Column(name = "token_hash", nullable = false, unique = true)
+  @Column(name = "token_hash", nullable = false, unique = true, length = 255)
   private String tokenHash;
 
   @Column(name = "issued_at", nullable = false)
@@ -39,10 +39,6 @@ public class RefreshToken {
 
   @Column(name = "revoked_at")
   private Instant revokedAt;
-
-  @CreatedDate
-  @Column(name = "created_at", nullable = false, updatable = false)
-  private Instant createdAt;
 
   protected RefreshToken() {}
 

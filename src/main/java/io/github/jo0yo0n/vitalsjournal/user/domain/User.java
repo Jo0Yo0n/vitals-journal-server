@@ -1,5 +1,6 @@
 package io.github.jo0yo0n.vitalsjournal.user.domain;
 
+import io.github.jo0yo0n.vitalsjournal.common.domain.CreatedTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -10,7 +11,7 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "users")
-public class User {
+public class User extends CreatedTimeEntity {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,22 +23,18 @@ public class User {
   @Column(name = "hashed_password", nullable = false)
   private String hashedPassword;
 
-  @Column(name = "nickname", nullable = false)
+  @Column(name = "nickname", nullable = false, length = 50)
   private String nickname;
-
-  @Column(name = "created_at", nullable = false, updatable = false)
-  private Instant createdAt;
 
   @Column(name = "deleted_at")
   private Instant deletedAt;
 
   protected User() {}
 
-  public User(String email, String hashedPassword, String nickname, Instant createdAt) {
+  public User(String email, String hashedPassword, String nickname) {
     this.email = email;
     this.hashedPassword = hashedPassword;
     this.nickname = nickname;
-    this.createdAt = createdAt;
   }
 
   public boolean isDeleted() {
