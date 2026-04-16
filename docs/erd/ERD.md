@@ -16,12 +16,15 @@
   - NOT NULL, CITEXT(320)
 - hashed_password
   - NOT NULL, VARCHAR(255)
+- nickname
+  - NOT NULL, VARCHAR(50)
 - created_at
   - TIMESTAMPZ NOT NULL DEFAULT now()
 - deleted_at
   - TIMESTAMPZ NULL
 
-➕ `CREATE UNIQUE INDEX ux_user_email_active ON “user”(email) WHERE deleted_at IS NULL;`
+➕ `CREATE UNIQUE INDEX ux_users_email_active ON users(email) WHERE deleted_at IS NULL;`
+➕ `CREATE UNIQUE INDEX ux_users_nickname_active ON users(nickname) WHERE deleted_at IS NULL;`
 
 ## health_record
 
