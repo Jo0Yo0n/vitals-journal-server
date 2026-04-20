@@ -20,6 +20,10 @@ public enum ErrorCode {
       HttpStatus.CONFLICT,
       URI.create("http://localhost:8080/problems/email-already-exists"),
       "Email already exists"),
+  NICKNAME_ALREADY_EXISTS(
+      HttpStatus.CONFLICT,
+      URI.create("http://localhost:8080/problems/nickname-already-exists"),
+      "Nickname already exists"),
   INVALID_CREDENTIALS(
       HttpStatus.UNAUTHORIZED,
       URI.create("http://localhost:8080/problems/invalid-credentials"),
