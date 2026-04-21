@@ -31,10 +31,14 @@ public class User extends CreatedTimeEntity {
 
   protected User() {}
 
-  public User(String email, String hashedPassword, String nickname) {
+  private User(String email, String hashedPassword, String nickname) {
     this.email = email;
     this.hashedPassword = hashedPassword;
     this.nickname = nickname;
+  }
+
+  public static User of(String email, String hashedPassword, String nickname) {
+    return new User(email, hashedPassword, nickname);
   }
 
   public boolean isDeleted() {
@@ -45,5 +49,17 @@ public class User extends CreatedTimeEntity {
     if (!isDeleted()) {
       this.deletedAt = now;
     }
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public String getHashedPassword() {
+    return hashedPassword;
+  }
+
+  public String getNickname() {
+    return nickname;
   }
 }

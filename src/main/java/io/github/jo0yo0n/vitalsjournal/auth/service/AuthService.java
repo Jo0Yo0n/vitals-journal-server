@@ -34,7 +34,7 @@ public class AuthService {
     }
 
     String encodedPassword = passwordEncoder.encode(rawPassword);
-    User user = new User(email, encodedPassword, nickname);
+    User user = User.of(email, encodedPassword, nickname);
 
     try {
       userRepository.saveAndFlush(user);
