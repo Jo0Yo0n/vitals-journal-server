@@ -1021,9 +1021,10 @@ components:
         password:
           type: string
           minLength: 8
+          maxLength: 72
+          pattern: '^[A-Za-z0-9!@#$%&*._?-]+$'
           description:
-            UTF-8 기준 최대 72바이트까지 허용합니다. 한글, 이모지 등 멀티바이트 문자가
-            포함되면 허용 가능한 문자 수는 더 짧아질 수 있습니다.
+            영문 대소문자, 숫자, 특수문자(! @ # $ % & * - _ . ?)만 허용합니다.
         nickname:
           type: string
           maxLength: 50
@@ -1039,9 +1040,11 @@ components:
           format: email
         password:
           type: string
+          minLength: 8
+          maxLength: 72
+          pattern: '^[A-Za-z0-9!@#$%&*._?-]+$'
           description:
-            UTF-8 기준 최대 72바이트까지 허용합니다. 한글, 이모지 등 멀티바이트 문자가
-            포함되면 허용 가능한 문자 수는 더 짧아질 수 있습니다.
+            영문 대소문자, 숫자, 특수문자(! @ # $ % & * - _ . ?)만 허용합니다.
       required:
         - email
         - password

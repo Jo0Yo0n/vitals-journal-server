@@ -117,7 +117,7 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.errorCode").value("NICKNAME_ALREADY_EXISTS"));
   }
 
-  @DisplayName("비밀번호가 8자 미만이면 400 VALIDATION_ERROR")
+  @DisplayName("비밀번호가 7자리면 400 VALIDATION_ERROR")
   @Test
   void registerWithShortPassword() throws Exception {
     mockMvc
@@ -128,7 +128,7 @@ class AuthControllerTest {
                     """
                     {
                       "email": "test@example.com",
-                      "password": "short",
+                      "password": "short12",
                       "nickname": "nickname"
                     }
                     """))
@@ -137,29 +137,9 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.errors[*].name").value(hasItems("password")));
   }
 
-  @DisplayName("비밀번호가 UTF-8 기준 72바이트를 초과하면 400 VALIDATION_ERROR")
+  @DisplayName("비밀번호가 8자이면 성공")
   @Test
-  void registerWithPasswordExceeding72Utf8Bytes() throws Exception {
-    mockMvc
-        .perform(
-            post("/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "email": "test@example.com",
-                      "password": "가가가가가가가가가가가가가가가가가가가가가가가가가",
-                      "nickname": "nickname"
-                    }
-                    """))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
-        .andExpect(jsonPath("$.errors[*].name").value(hasItems("password")));
-  }
-
-  @DisplayName("정상 요청은 201 CREATED")
-  @Test
-  void registerSuccess() throws Exception {
+  void registerWithPasswordOf8Characters() throws Exception {
     mockMvc
         .perform(
             post("/auth/register")
@@ -176,5 +156,70 @@ class AuthControllerTest {
         .andExpect(content().string(""));
 
     then(authService).should().register("test@example.com", "password", "nickname");
+  }
+
+  @DisplayName("비밀번호가 73자면 400 VALIDATION_ERROR")
+  @Test
+  void registerWithPasswordExceeding72Characters() throws Exception {
+    String longPassword = "a".repeat(73);
+    mockMvc
+        .perform(
+            post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "test@example.com",
+                      "password": "%s",
+                      "nickname": "nickname"
+                    }
+                    """
+                        .formatted(longPassword)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.errors[*].name").value(hasItems("password")));
+  }
+
+  @DisplayName("비밀번호가 72자이면 성공")
+  @Test
+  void registerWithPasswordOf72Characters() throws Exception {
+    String longPassword = "a".repeat(72);
+    mockMvc
+        .perform(
+            post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "test@example.com",
+                      "password": "%s",
+                      "nickname": "nickname"
+                    }
+                    """
+                        .formatted(longPassword)))
+        .andExpect(status().isCreated())
+        .andExpect(content().string(""));
+
+    then(authService).should().register("test@example.com", longPassword, "nickname");
+  }
+
+  @DisplayName("비밀번호에 허용되지 않은 문자가 있으면 400 VALIDATION_ERROR")
+  @Test
+  void registerWithPasswordContainingInvalidCharacters() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "test@example.com",
+                      "password": "invalid password",
+                      "nickname": "nickname"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.errors[*].name").value(hasItems("password")));
   }
 }
