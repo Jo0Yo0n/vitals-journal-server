@@ -43,7 +43,7 @@ paths:
                     type: http://localhost:8080/problems/email-already-exists
                     title: Email already exists
                     status: 409
-                    detail: Email is already registered.
+                    detail: Email already exists
                     instance: /auth/register
                     errorCode: EMAIL_ALREADY_EXISTS
                 nicknameAlreadyExists:
@@ -52,7 +52,7 @@ paths:
                     type: http://localhost:8080/problems/nickname-already-exists
                     title: Nickname already exists
                     status: 409
-                    detail: Nickname is already registered.
+                    detail: Nickname already exists
                     instance: /auth/register
                     errorCode: NICKNAME_ALREADY_EXISTS
   /auth/login:
