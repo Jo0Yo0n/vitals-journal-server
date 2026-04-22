@@ -83,13 +83,13 @@ class AuthRegisterPersistenceTest {
   @Test
   void saveDuplicateEmailThrowsException() {
     // given
-    userRepository.saveAndFlush(User.of("duplicate-email", "encoded-password", "nickname"));
+    userRepository.saveAndFlush(User.of("duplicate-email", "encoded-password", "nickname1"));
 
     // when / then
     assertThatThrownBy(
             () ->
                 userRepository.saveAndFlush(
-                    User.of("duplicate-email", "encoded-password", "nickname")))
+                    User.of("duplicate-email", "encoded-password", "nickname2")))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 

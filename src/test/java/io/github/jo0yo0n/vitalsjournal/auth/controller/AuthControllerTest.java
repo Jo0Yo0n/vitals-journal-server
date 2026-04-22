@@ -117,7 +117,7 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.errorCode").value("NICKNAME_ALREADY_EXISTS"));
   }
 
-  @DisplayName("비밀번호가 7자 미만이면 400 VALIDATION_ERROR")
+  @DisplayName("비밀번호가 8자 미만이면 400 VALIDATION_ERROR")
   @Test
   void registerWithShortPassword() throws Exception {
     mockMvc
