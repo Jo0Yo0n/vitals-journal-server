@@ -11,4 +11,4 @@ public record RegisterRequest(
         @Size(min = 8, max = 72)
         @Pattern(regexp = "^[A-Za-z0-9!@#$%&*._?-]+$", message = "invalid")
         String password,
-    @NotBlank @Size(max = 50) String nickname) {}
+    @NotBlank @Size(max = 50) @Pattern(regexp = "^\\S+$", message = "invalid") String nickname) {}

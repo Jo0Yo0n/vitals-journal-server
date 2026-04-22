@@ -117,6 +117,26 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.errorCode").value("NICKNAME_ALREADY_EXISTS"));
   }
 
+  @DisplayName("닉네임에 공백이 있으면 400 VALIDATION_ERROR")
+  @Test
+  void registerWithNicknameContainingWhitespace() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "test@example.com",
+                      "password": "password",
+                      "nickname": "nickname with space"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.errors[*].name").value(hasItems("nickname")));
+  }
+
   @DisplayName("비밀번호가 7자리면 400 VALIDATION_ERROR")
   @Test
   void registerWithShortPassword() throws Exception {
