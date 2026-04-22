@@ -137,6 +137,26 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.errors[*].name").value(hasItems("password")));
   }
 
+  @DisplayName("비밀번호가 UTF-8 기준 72바이트를 초과하면 400 VALIDATION_ERROR")
+  @Test
+  void registerWithPasswordExceeding72Utf8Bytes() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "test@example.com",
+                      "password": "가가가가가가가가가가가가가가가가가가가가가가가가가",
+                      "nickname": "nickname"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.errors[*].name").value(hasItems("password")));
+  }
+
   @DisplayName("정상 요청은 201 CREATED")
   @Test
   void registerSuccess() throws Exception {
