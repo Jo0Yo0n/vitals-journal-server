@@ -2,7 +2,6 @@ package io.github.jo0yo0n.vitalsjournal.common.validation;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
-import java.nio.charset.StandardCharsets;
 
 public class Utf8ByteLengthValidator implements ConstraintValidator<Utf8ByteLength, CharSequence> {
 
@@ -21,7 +20,26 @@ public class Utf8ByteLengthValidator implements ConstraintValidator<Utf8ByteLeng
       return true;
     }
 
-    int length = value.toString().getBytes(StandardCharsets.UTF_8).length;
-    return length >= min && length <= max;
+    int byteCount = 0;
+    for (int i = 0; i < value.length(); ) {
+      int codePoint = Character.codePointAt(value, i);
+      if (codePoint < 0x80) {
+        byteCount += 1;
+      } else if (codePoint < 0x800) {
+        byteCount += 2;
+      } else if (codePoint < 0x10000) {
+        byteCount += 3;
+      } else {
+        byteCount += 4;
+      }
+
+      if (byteCount > max) {
+        return false;
+      }
+
+      i += Character.charCount(codePoint);
+    }
+
+    return byteCount >= min;
   }
 }

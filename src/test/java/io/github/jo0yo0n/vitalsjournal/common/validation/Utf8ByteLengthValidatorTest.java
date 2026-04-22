@@ -49,5 +49,26 @@ class Utf8ByteLengthValidatorTest {
                         && violation.getMessage().equals("invalid")));
   }
 
+  @DisplayName("UTF-8 4바이트 문자가 72바이트 경계 이내면 검증에 성공")
+  @Test
+  void validWhenSupplementaryCharactersFitWithin72Bytes() {
+    TestRequest request = new TestRequest("😀".repeat(18));
+
+    assertTrue(validator.validate(request).isEmpty());
+  }
+
+  @DisplayName("UTF-8 4바이트 문자가 72바이트를 초과하면 검증에 실패")
+  @Test
+  void invalidWhenSupplementaryCharactersExceed72Bytes() {
+    TestRequest request = new TestRequest("😀".repeat(19));
+
+    assertTrue(
+        validator.validate(request).stream()
+            .anyMatch(
+                violation ->
+                    violation.getPropertyPath().toString().equals("password")
+                        && violation.getMessage().equals("invalid")));
+  }
+
   private record TestRequest(@Utf8ByteLength(max = 72) String password) {}
 }
