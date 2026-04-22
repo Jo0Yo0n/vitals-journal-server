@@ -29,4 +29,14 @@ public class ErrorCodeTest {
         ErrorCode.VALIDATION_ERROR.type());
     assertEquals("Request validation failed", ErrorCode.VALIDATION_ERROR.title());
   }
+
+  @DisplayName("NICKNAME_ALREADY_EXISTS는 409와 nickname-already-exists type을 가진다.")
+  @Test
+  void nicknameAlreadyExistsMetadata() {
+    assertEquals(HttpStatus.CONFLICT, ErrorCode.NICKNAME_ALREADY_EXISTS.status());
+    assertEquals(
+        URI.create("http://localhost:8080/problems/nickname-already-exists"),
+        ErrorCode.NICKNAME_ALREADY_EXISTS.type());
+    assertEquals("Nickname already exists", ErrorCode.NICKNAME_ALREADY_EXISTS.title());
+  }
 }

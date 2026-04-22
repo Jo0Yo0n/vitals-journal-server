@@ -11,4 +11,6 @@ public interface UserRepository extends Repository<User, Long> {
   boolean existsByEmailAndDeletedAtIsNull(String email);
 
   boolean existsByNicknameAndDeletedAtIsNull(String nickname);
+
+  User saveAndFlush(User user);
 }

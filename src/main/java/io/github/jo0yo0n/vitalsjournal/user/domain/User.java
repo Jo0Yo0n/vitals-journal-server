@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Entity
 @Table(name = "users")
@@ -31,10 +32,14 @@ public class User extends CreatedTimeEntity {
 
   protected User() {}
 
-  public User(String email, String hashedPassword, String nickname) {
+  private User(String email, String hashedPassword, String nickname) {
     this.email = email;
     this.hashedPassword = hashedPassword;
     this.nickname = nickname;
+  }
+
+  public static User of(String email, String hashedPassword, String nickname) {
+    return new User(email, hashedPassword, nickname);
   }
 
   public boolean isDeleted() {
@@ -45,5 +50,17 @@ public class User extends CreatedTimeEntity {
     if (!isDeleted()) {
       this.deletedAt = now;
     }
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public String getNickname() {
+    return nickname;
+  }
+
+  public boolean matchesPassword(String rawPassword, PasswordEncoder passwordEncoder) {
+    return passwordEncoder.matches(rawPassword, this.hashedPassword);
   }
 }
