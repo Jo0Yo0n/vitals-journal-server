@@ -81,7 +81,7 @@ class AuthServiceTest {
 
     User savedUser = userCaptor.getValue();
     assertThat(savedUser.getEmail()).isEqualTo("email");
-    assertThat(passwordEncoder.matches("password", savedUser.getHashedPassword())).isTrue();
+    assertThat(savedUser.matchesPassword("password", passwordEncoder)).isTrue();
     assertThat(savedUser.getNickname()).isEqualTo("nickname");
   }
 

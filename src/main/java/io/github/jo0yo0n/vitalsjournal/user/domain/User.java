@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Entity
 @Table(name = "users")
@@ -55,11 +56,11 @@ public class User extends CreatedTimeEntity {
     return email;
   }
 
-  public String getHashedPassword() {
-    return hashedPassword;
-  }
-
   public String getNickname() {
     return nickname;
+  }
+
+  public boolean matchesPassword(String rawPassword, PasswordEncoder passwordEncoder) {
+    return passwordEncoder.matches(rawPassword, this.hashedPassword);
   }
 }
