@@ -731,7 +731,16 @@ paths:
       description:
         "- refresh_token 쿠키가 유효하면 새 access_token과 새 refresh_token 쿠키를 발급
 
-        - 기존 refresh_token은 revoked 처리(로테이션)"
+        - 기존 refresh_token은 revoked 처리(로테이션)
+
+        - 이 엔드포인트는 CSRF 보호가 적용되므로, 클라이언트는 CSRF 토큰 쿠키(예: `XSRF-TOKEN`)와 해당 쿠키 값과 동일한 `X-XSRF-TOKEN` 요청 헤더를 함께 보내야 합니다."
+      parameters:
+        - name: X-XSRF-TOKEN
+          in: header
+          required: true
+          description: CSRF 보호를 위한 요청 헤더입니다. `XSRF-TOKEN` 쿠키 값과 동일한 값을 전송해야 합니다.
+          schema:
+            type: string
       security:
         - refreshCookie: []
       responses:
