@@ -4,14 +4,21 @@ CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     email CITEXT NOT NULL,
     hashed_password VARCHAR(255) NOT NULL,
+    nickname VARCHAR(50) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ NULL,
-    CONSTRAINT ck_users_email_length CHECK (char_length(email::text) <= 320)
+
+    CONSTRAINT ck_users_email_length CHECK (char_length(email::text) <= 320),
+    CONSTRAINT ck_users_nickname_length CHECK (
+        char_length(nickname) >= 1 AND char_length(nickname) <= 50
+    )
 );
 
-CREATE UNIQUE INDEX ux_users_email_active
-    ON users (email)
-    WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX ux_users_email
+    ON users (email);
+
+CREATE UNIQUE INDEX ux_users_nickname
+    ON users (nickname);
+
 
 CREATE TABLE health_record (
     id BIGSERIAL PRIMARY KEY,
@@ -23,134 +30,117 @@ CREATE TABLE health_record (
     diastolic SMALLINT NULL,
     memo TEXT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ NULL,
+
     CONSTRAINT ck_health_record_record_type CHECK (record_type IN ('HR', 'BP')),
-    CONSTRAINT ck_health_record_bpm CHECK (bpm IS NULL OR bpm BETWEEN 1 AND 300),
-    CONSTRAINT ck_health_record_systolic CHECK (systolic IS NULL OR systolic BETWEEN 50 AND 300),
-    CONSTRAINT ck_health_record_diastolic CHECK (diastolic IS NULL OR diastolic BETWEEN 30 AND 200),
+    CONSTRAINT ck_health_record_bpm CHECK (
+        bpm IS NULL OR bpm BETWEEN 1 AND 300
+    ),
+    CONSTRAINT ck_health_record_systolic CHECK (
+        systolic IS NULL OR systolic BETWEEN 50 AND 300
+    ),
+    CONSTRAINT ck_health_record_diastolic CHECK (
+        diastolic IS NULL OR diastolic BETWEEN 30 AND 200
+    ),
+    CONSTRAINT ck_health_record_memo_length CHECK (
+        memo IS NULL OR char_length(memo) <= 500
+    ),
     CONSTRAINT ck_health_record_bp_order CHECK (
         systolic IS NULL OR diastolic IS NULL OR systolic > diastolic
     ),
     CONSTRAINT ck_health_record_record_type_columns CHECK (
-        (record_type = 'HR' AND bpm IS NOT NULL AND systolic IS NULL AND diastolic IS NULL)
+        (
+            record_type = 'HR'
+            AND bpm IS NOT NULL
+            AND systolic IS NULL
+            AND diastolic IS NULL
+        )
         OR
-        (record_type = 'BP' AND bpm IS NULL AND systolic IS NOT NULL AND diastolic IS NOT NULL)
+        (
+            record_type = 'BP'
+            AND bpm IS NULL
+            AND systolic IS NOT NULL
+            AND diastolic IS NOT NULL
+        )
     )
 );
 
-CREATE INDEX ix_health_record_user_measured_at_active
-    ON health_record (user_id, measured_at DESC)
-    WHERE deleted_at IS NULL;
+CREATE INDEX ix_health_record_user_measured_at
+    ON health_record (user_id, measured_at DESC);
 
-CREATE INDEX ix_health_record_user_created_at_active
-    ON health_record (user_id, created_at DESC)
-    WHERE deleted_at IS NULL;
+CREATE INDEX ix_health_record_user_created_at
+    ON health_record (user_id, created_at DESC);
+
 
 CREATE TABLE threshold (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users (id),
     metric VARCHAR(16) NOT NULL,
-    rule_type VARCHAR(16) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ NULL,
-    CONSTRAINT ck_threshold_metric CHECK (metric IN ('HR', 'BP_SYS', 'BP_DIA')),
-    CONSTRAINT ck_threshold_rule_type CHECK (rule_type IN ('range'))
-);
-
-CREATE UNIQUE INDEX ux_threshold_user_metric_rule_type_active
-    ON threshold (user_id, metric, rule_type)
-    WHERE deleted_at IS NULL;
-
-CREATE INDEX ix_threshold_user_metric_rule_type_active
-    ON threshold (user_id, metric, rule_type)
-    WHERE deleted_at IS NULL;
-
-CREATE INDEX ix_threshold_user_active
-    ON threshold (user_id)
-    WHERE deleted_at IS NULL;
-
-CREATE TABLE threshold_range (
-    threshold_id BIGINT PRIMARY KEY REFERENCES threshold (id) ON DELETE CASCADE,
     min_value NUMERIC(10, 2) NULL,
     max_value NUMERIC(10, 2) NULL,
-    CONSTRAINT ck_threshold_range_min_max CHECK (
-        min_value IS NULL OR max_value IS NULL OR min_value < max_value
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT ck_threshold_metric CHECK (metric IN ('HR', 'BP_SYS', 'BP_DIA')),
+    CONSTRAINT ck_threshold_at_least_one_bound CHECK (
+        min_value IS NOT NULL OR max_value IS NOT NULL
+    ),
+    CONSTRAINT ck_threshold_min_max CHECK (
+        min_value IS NULL OR max_value IS NULL OR min_value <= max_value
     )
 );
 
+CREATE UNIQUE INDEX ux_threshold_user_metric
+    ON threshold (user_id, metric);
+
+CREATE INDEX ix_threshold_user
+    ON threshold (user_id);
+
+
 CREATE TABLE alert (
     id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users (id),
     health_record_id BIGINT NOT NULL REFERENCES health_record (id) ON DELETE CASCADE,
-    is_silent BOOLEAN NOT NULL DEFAULT false,
+    message VARCHAR(255) NOT NULL,
     read_at TIMESTAMPTZ NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ NULL
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX ux_alert_health_record_active
-    ON alert (health_record_id)
-    WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX ux_alert_health_record
+    ON alert (health_record_id);
 
-CREATE INDEX ix_alert_created_at_active
-    ON alert (created_at DESC)
-    WHERE deleted_at IS NULL;
+CREATE INDEX ix_alert_user_created_at
+    ON alert (user_id, created_at DESC);
 
-CREATE INDEX ix_alert_health_record_active
-    ON alert (health_record_id)
-    WHERE deleted_at IS NULL;
 
 CREATE TABLE record_violation (
     id BIGSERIAL PRIMARY KEY,
     health_record_id BIGINT NOT NULL REFERENCES health_record (id) ON DELETE CASCADE,
-    threshold_id BIGINT NOT NULL REFERENCES threshold (id),
     metric VARCHAR(16) NOT NULL,
-    rule_record_type VARCHAR(16) NOT NULL,
     measured_value NUMERIC(10, 2) NOT NULL,
-    direction VARCHAR(16) NULL,
+    min_value_snapshot NUMERIC(10, 2) NULL,
+    max_value_snapshot NUMERIC(10, 2) NULL,
+    direction VARCHAR(16) NOT NULL,
     evaluated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ NULL,
+
     CONSTRAINT ck_record_violation_metric CHECK (metric IN ('HR', 'BP_SYS', 'BP_DIA')),
-    CONSTRAINT ck_record_violation_rule_record_type CHECK (rule_record_type IN ('range')),
     CONSTRAINT ck_record_violation_direction CHECK (
-        direction IS NULL OR direction IN ('below_min', 'above_max')
+        direction IN ('below_min', 'above_max')
+    ),
+    CONSTRAINT ck_record_violation_at_least_one_bound CHECK (
+        min_value_snapshot IS NOT NULL OR max_value_snapshot IS NOT NULL
+    ),
+    CONSTRAINT ck_record_violation_min_max_snapshot CHECK (
+        min_value_snapshot IS NULL
+        OR max_value_snapshot IS NULL
+        OR min_value_snapshot <= max_value_snapshot
     )
 );
 
-CREATE UNIQUE INDEX ux_record_violation_record_threshold_active
-    ON record_violation (health_record_id, threshold_id)
-    WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX ux_record_violation_record_metric
+    ON record_violation (health_record_id, metric);
 
-CREATE INDEX ix_record_violation_health_record_active
-    ON record_violation (health_record_id)
-    WHERE deleted_at IS NULL;
+CREATE INDEX ix_record_violation_health_record
+    ON record_violation (health_record_id);
 
-CREATE INDEX ix_record_violation_threshold_active
-    ON record_violation (threshold_id)
-    WHERE deleted_at IS NULL;
-
-CREATE INDEX ix_record_violation_evaluated_at_active
-    ON record_violation (evaluated_at DESC)
-    WHERE deleted_at IS NULL;
-
-CREATE TABLE refresh_token (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users (id),
-    token_hash VARCHAR(255) NOT NULL,
-    issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    expires_at TIMESTAMPTZ NOT NULL,
-    revoked_at TIMESTAMPTZ NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE UNIQUE INDEX ux_refresh_token_token_hash
-    ON refresh_token (token_hash);
-
-CREATE INDEX ix_refresh_token_user_expires_active
-    ON refresh_token (user_id, expires_at DESC)
-    WHERE revoked_at IS NULL;
-
-CREATE INDEX ix_refresh_token_expires_active
-    ON refresh_token (expires_at)
-    WHERE revoked_at IS NULL;
+CREATE INDEX ix_record_violation_evaluated_at
+    ON record_violation (evaluated_at DESC);
