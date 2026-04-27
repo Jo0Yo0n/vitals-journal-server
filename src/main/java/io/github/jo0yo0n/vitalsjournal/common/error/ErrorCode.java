@@ -28,14 +28,6 @@ public enum ErrorCode {
       HttpStatus.UNAUTHORIZED,
       URI.create("http://localhost:8080/problems/invalid-credentials"),
       "Invalid credentials"),
-  ACCOUNT_DELETED(
-      HttpStatus.FORBIDDEN,
-      URI.create("http://localhost:8080/problems/account-deleted"),
-      "Account deleted"),
-  INVALID_REFRESH_TOKEN(
-      HttpStatus.UNAUTHORIZED,
-      URI.create("http://localhost:8080/problems/invalid-refresh-token"),
-      "Invalid refresh token"),
   UNAUTHORIZED(
       HttpStatus.UNAUTHORIZED,
       URI.create("http://localhost:8080/problems/unauthorized"),
@@ -46,10 +38,6 @@ public enum ErrorCode {
       HttpStatus.NOT_FOUND,
       URI.create("http://localhost:8080/problems/health-record-not-found"),
       "Health record not found"),
-  EDIT_WINDOW_EXPIRED(
-      HttpStatus.CONFLICT,
-      URI.create("http://localhost:8080/problems/edit-window-expired"),
-      "Edit window expired"),
   HEALTH_RECORD_TYPE_MISMATCH(
       HttpStatus.BAD_REQUEST,
       URI.create("http://localhost:8080/problems/health-record-type-mismatch"),
@@ -60,10 +48,6 @@ public enum ErrorCode {
       HttpStatus.NOT_FOUND,
       URI.create("http://localhost:8080/problems/threshold-not-found"),
       "Threshold not found"),
-  THRESHOLD_ALREADY_EXISTS(
-      HttpStatus.CONFLICT,
-      URI.create("http://localhost:8080/problems/threshold-already-exists"),
-      "Threshold already exists"),
   INVALID_THRESHOLD_RANGE(
       HttpStatus.BAD_REQUEST,
       URI.create("http://localhost:8080/problems/invalid-threshold-range"),

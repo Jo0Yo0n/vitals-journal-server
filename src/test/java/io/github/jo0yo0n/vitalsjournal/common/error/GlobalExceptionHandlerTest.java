@@ -28,11 +28,12 @@ class GlobalExceptionHandlerTest {
   void handleBusinessException() throws Exception {
     mockMvc
         .perform(get("/test/business"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.type").value("http://localhost:8080/problems/account-deleted"))
-        .andExpect(jsonPath("$.title").value("Account deleted"))
-        .andExpect(jsonPath("$.detail").value("Account deleted"))
-        .andExpect(jsonPath("$.errorCode").value("ACCOUNT_DELETED"))
+        .andExpect(status().isNotFound())
+        .andExpect(
+            jsonPath("$.type").value("http://localhost:8080/problems/health-record-not-found"))
+        .andExpect(jsonPath("$.title").value("Health record not found"))
+        .andExpect(jsonPath("$.detail").value("Health record not found"))
+        .andExpect(jsonPath("$.errorCode").value("HEALTH_RECORD_NOT_FOUND"))
         .andExpect(jsonPath("$.instance").value("/test/business"))
         .andExpect(jsonPath("$.errors").doesNotExist());
   }
@@ -45,7 +46,7 @@ class GlobalExceptionHandlerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.type").value("http://localhost:8080/problems/validation-error"))
         .andExpect(jsonPath("$.title").value("Request validation failed"))
-        .andExpect(jsonPath("$.detail").value("Request validation failed."))
+        .andExpect(jsonPath("$.detail").value("Request validation failed"))
         .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
         .andExpect(jsonPath("$.instance").value("/test/body"))
         .andExpect(jsonPath("$.errors[0].name").value("name"))
@@ -60,7 +61,7 @@ class GlobalExceptionHandlerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.type").value("http://localhost:8080/problems/validation-error"))
         .andExpect(jsonPath("$.title").value("Request validation failed"))
-        .andExpect(jsonPath("$.detail").value("Request validation failed."))
+        .andExpect(jsonPath("$.detail").value("Request validation failed"))
         .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
         .andExpect(jsonPath("$.instance").value("/test/param"))
         .andExpect(jsonPath("$.errors[0].name").value("name"))
@@ -85,7 +86,7 @@ class GlobalExceptionHandlerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.type").value("http://localhost:8080/problems/invalid-request"))
         .andExpect(jsonPath("$.title").value("Invalid request"))
-        .andExpect(jsonPath("$.detail").value("Request body is missing or malformed."))
+        .andExpect(jsonPath("$.detail").value("Request body is missing or malformed"))
         .andExpect(jsonPath("$.errorCode").value("INVALID_REQUEST"))
         .andExpect(jsonPath("$.instance").value("/test/body"))
         .andExpect(jsonPath("$.errors").doesNotExist());
@@ -102,7 +103,7 @@ class GlobalExceptionHandlerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.type").value("http://localhost:8080/problems/validation-error"))
         .andExpect(jsonPath("$.title").value("Request validation failed"))
-        .andExpect(jsonPath("$.detail").value("Request validation failed."))
+        .andExpect(jsonPath("$.detail").value("Request validation failed"))
         .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
         .andExpect(jsonPath("$.instance").value("/test/date-range"))
         .andExpect(jsonPath("$.errors[0].name").value("startedAt"))

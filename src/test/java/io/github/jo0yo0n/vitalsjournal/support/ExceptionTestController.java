@@ -1,8 +1,8 @@
 package io.github.jo0yo0n.vitalsjournal.support;
 
-import io.github.jo0yo0n.vitalsjournal.auth.exception.AccountDeletedException;
 import io.github.jo0yo0n.vitalsjournal.common.validation.DateRangeValidatable;
 import io.github.jo0yo0n.vitalsjournal.common.validation.ValidDateRange;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.exception.HealthRecordNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
@@ -19,7 +19,7 @@ public class ExceptionTestController {
 
   @GetMapping("/test/business")
   String business() {
-    throw new AccountDeletedException();
+    throw new HealthRecordNotFoundException();
   }
 
   @PostMapping("/test/body")

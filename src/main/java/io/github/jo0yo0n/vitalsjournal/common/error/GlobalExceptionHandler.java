@@ -43,7 +43,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
       WebRequest request) {
 
     ProblemDetail problem =
-        newProblemDetail(ErrorCode.VALIDATION_ERROR, "Request validation failed.");
+        newProblemDetail(ErrorCode.VALIDATION_ERROR, "Request validation failed");
     problem.setProperty("errors", extractBindingErrors(ex.getBindingResult()));
 
     return handleExceptionInternal(ex, problem, headers, status, request);
@@ -63,8 +63,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     String detail =
         ex.isForReturnValue()
-            ? "Method return value validation failed."
-            : "Request validation failed.";
+            ? "Method return value validation failed"
+            : "Request validation failed";
 
     ProblemDetail problem = newProblemDetail(errorCode, detail);
     if (!ex.isForReturnValue()) {
@@ -83,7 +83,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
       WebRequest request) {
 
     ProblemDetail problem =
-        newProblemDetail(ErrorCode.INVALID_REQUEST, "Request body is missing or malformed.");
+        newProblemDetail(ErrorCode.INVALID_REQUEST, "Request body is missing or malformed");
     return handleExceptionInternal(ex, problem, headers, status, request);
   }
 
@@ -93,7 +93,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
       TypeMismatchException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
 
     ProblemDetail problem =
-        newProblemDetail(ErrorCode.INVALID_REQUEST, "A request parameter has an invalid type.");
+        newProblemDetail(ErrorCode.INVALID_REQUEST, "A request parameter has an invalid type");
 
     return handleExceptionInternal(ex, problem, headers, status, request);
   }
@@ -102,7 +102,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Object> handleUnexpectedEntityException(Exception ex, WebRequest request) {
     ProblemDetail problem =
-        newProblemDetail(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
+        newProblemDetail(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 
     return handleExceptionInternal(
         ex, problem, null, ErrorCode.INTERNAL_SERVER_ERROR.status(), request);
