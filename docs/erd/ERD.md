@@ -122,7 +122,7 @@ CREATE UNIQUE INDEX ux_users_nickname ON users(nickname);
 
 ```sql
 ALTER TABLE health_record
-  ADD CONSTRAINT ck_health_record_type
+  ADD CONSTRAINT ck_health_record_record_type
   CHECK (record_type IN ('HR', 'BP'));
 
 ALTER TABLE health_record
@@ -146,7 +146,7 @@ ALTER TABLE health_record
   CHECK (systolic IS NULL OR diastolic IS NULL OR systolic > diastolic);
 
 ALTER TABLE health_record
-  ADD CONSTRAINT ck_health_record_type_fields
+  ADD CONSTRAINT ck_health_record_record_type_columns
   CHECK (
     (record_type = 'HR' AND bpm IS NOT NULL AND systolic IS NULL AND diastolic IS NULL)
     OR
@@ -202,11 +202,11 @@ ALTER TABLE threshold
   CHECK (metric IN ('HR', 'BP_SYS', 'BP_DIA'));
 
 ALTER TABLE threshold
-  ADD CONSTRAINT ck_threshold_has_bound
+  ADD CONSTRAINT ck_threshold_at_least_one_bound
   CHECK (min_value IS NOT NULL OR max_value IS NOT NULL);
 
 ALTER TABLE threshold
-  ADD CONSTRAINT ck_threshold_range
+  ADD CONSTRAINT ck_threshold_min_max
   CHECK (min_value IS NULL OR max_value IS NULL OR min_value <= max_value);
 
 CREATE UNIQUE INDEX ux_threshold_user_metric
@@ -266,11 +266,11 @@ ALTER TABLE record_violation
   CHECK (direction IN ('below_min', 'above_max'));
 
 ALTER TABLE record_violation
-  ADD CONSTRAINT ck_record_violation_has_bound
+  ADD CONSTRAINT ck_record_violation_at_least_one_bound
   CHECK (min_value_snapshot IS NOT NULL OR max_value_snapshot IS NOT NULL);
 
 ALTER TABLE record_violation
-  ADD CONSTRAINT ck_record_violation_snapshot_range
+  ADD CONSTRAINT ck_record_violation_min_max_snapshot
   CHECK (
     min_value_snapshot IS NULL
     OR max_value_snapshot IS NULL
@@ -280,7 +280,7 @@ ALTER TABLE record_violation
 CREATE UNIQUE INDEX ux_record_violation_record_metric
   ON record_violation(health_record_id, metric);
 
-CREATE INDEX ix_record_violation_record
+CREATE INDEX ix_record_violation_health_record
   ON record_violation(health_record_id);
 
 CREATE INDEX ix_record_violation_evaluated_at

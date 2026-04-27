@@ -570,21 +570,32 @@ components:
         - updatedAt
       description: minValue와 maxValue 중 최소 하나는 null이 아니어야 합니다.
     ThresholdUpsertRequest:
+      description: minValue와 maxValue 중 최소 하나는 필수이며, 둘 다 존재하면 minValue ≤ maxValue여야 합니다.
       type: object
       properties:
         minValue:
           type: number
           format: double
-          nullable: true
         maxValue:
           type: number
           format: double
-          nullable: true
-      required:
-        - minValue
-        - maxValue
-      description: minValue와 maxValue 중 최소 하나는 null이 아니어야 하며, 둘 다 존재하면 minValue <=
-        maxValue여야 합니다.
+      oneOf:
+        - title: minValue만 설정
+          required:
+            - minValue
+          not:
+            required:
+              - maxValue
+        - title: maxValue만 설정
+          required:
+            - maxValue
+          not:
+            required:
+              - minValue
+        - title: 두 값 모두 설정
+          required:
+            - minValue
+            - maxValue
     ThresholdListResponse:
       type: object
       properties:
