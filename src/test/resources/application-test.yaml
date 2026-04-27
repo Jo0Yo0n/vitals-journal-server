@@ -2,5 +2,4 @@ auth:
   token:
     public-key: classpath:keys/test-public.pub
     private-key: classpath:keys/test-private.key
-    access-token-ttl: 15m
-    refresh-token-ttl: 14d
+    access-token-ttl: 30m

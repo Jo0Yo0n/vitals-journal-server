@@ -26,10 +26,10 @@ public class AuthService {
 
   @Transactional
   public void register(String email, String rawPassword, String nickname) {
-    if (userRepository.existsByEmailAndDeletedAtIsNull(email)) {
+    if (userRepository.existsByEmail(email)) {
       throw new EmailAlreadyExistsException();
     }
-    if (userRepository.existsByNicknameAndDeletedAtIsNull(nickname)) {
+    if (userRepository.existsByNickname(nickname)) {
       throw new NicknameAlreadyExistsException();
     }
 

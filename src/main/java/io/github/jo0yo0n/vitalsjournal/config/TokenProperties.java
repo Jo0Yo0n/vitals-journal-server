@@ -7,7 +7,4 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "auth.token")
 public record TokenProperties(
-    RSAPublicKey publicKey,
-    RSAPrivateKey privateKey,
-    Duration accessTokenTtl,
-    Duration refreshTokenTtl) {}
+    RSAPublicKey publicKey, RSAPrivateKey privateKey, Duration accessTokenTtl) {}

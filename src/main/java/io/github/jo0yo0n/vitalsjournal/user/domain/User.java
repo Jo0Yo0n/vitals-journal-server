@@ -7,7 +7,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.Instant;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Entity
@@ -27,9 +26,6 @@ public class User extends CreatedTimeEntity {
   @Column(name = "nickname", nullable = false, length = 50)
   private String nickname;
 
-  @Column(name = "deleted_at")
-  private Instant deletedAt;
-
   protected User() {}
 
   private User(String email, String hashedPassword, String nickname) {
@@ -40,16 +36,6 @@ public class User extends CreatedTimeEntity {
 
   public static User of(String email, String hashedPassword, String nickname) {
     return new User(email, hashedPassword, nickname);
-  }
-
-  public boolean isDeleted() {
-    return deletedAt != null;
-  }
-
-  public void delete(Instant now) {
-    if (!isDeleted()) {
-      this.deletedAt = now;
-    }
   }
 
   public String getEmail() {
