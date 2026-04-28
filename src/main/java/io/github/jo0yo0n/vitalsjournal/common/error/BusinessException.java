@@ -1,15 +1,27 @@
 package io.github.jo0yo0n.vitalsjournal.common.error;
 
+import jakarta.annotation.Nonnull;
+import org.springframework.lang.NonNull;
+
 public class BusinessException extends RuntimeException {
 
-  private final ErrorCode errorCode;
+  private final @NonNull ErrorCode errorCode;
 
-  protected BusinessException(ErrorCode errorCode) {
+  protected BusinessException(@NonNull ErrorCode errorCode) {
     super(errorCode.title());
     this.errorCode = errorCode;
   }
 
-  public ErrorCode getErrorCode() {
+  protected BusinessException(@NonNull ErrorCode errorCode, @NonNull String detail) {
+    super(detail);
+    this.errorCode = errorCode;
+  }
+
+  public @NonNull ErrorCode getErrorCode() {
     return errorCode;
+  }
+
+  public @Nonnull String detail() {
+    return getMessage();
   }
 }

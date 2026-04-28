@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.lang.NonNull;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.method.ParameterErrors;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -25,22 +26,22 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   @ExceptionHandler(BusinessException.class)
-  public ResponseEntity<Object> handleBusinessException(BusinessException ex, WebRequest request) {
-    ProblemDetail problem = newProblemDetail(ex.getErrorCode(), ex.getMessage());
-    problem.setType(ex.getErrorCode().type());
-    problem.setTitle(ex.getErrorCode().title());
+  public ResponseEntity<Object> handleBusinessException(
+      @NonNull BusinessException ex, @NonNull WebRequest request) {
+    ProblemDetail problem = newProblemDetail(ex.getErrorCode(), ex.detail());
 
-    return handleExceptionInternal(ex, problem, null, ex.getErrorCode().status(), request);
+    return handleExceptionInternal(
+        ex, problem, new HttpHeaders(), ex.getErrorCode().status(), request);
   }
 
   // DTO 바인딩 시 발생하는 검증 오류를 처리하는 핸들러
   // (예: @RequestBody, @ModelAttribute 검증 실패)
   @Override
   protected ResponseEntity<Object> handleMethodArgumentNotValid(
-      MethodArgumentNotValidException ex,
-      HttpHeaders headers,
-      HttpStatusCode status,
-      WebRequest request) {
+      @NonNull MethodArgumentNotValidException ex,
+      @NonNull HttpHeaders headers,
+      @NonNull HttpStatusCode status,
+      @NonNull WebRequest request) {
 
     ProblemDetail problem =
         newProblemDetail(ErrorCode.VALIDATION_ERROR, "Request validation failed");
@@ -53,10 +54,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   // (예: @RequestParam, @PathVariable 검증 실패)
   @Override
   protected ResponseEntity<Object> handleHandlerMethodValidationException(
-      HandlerMethodValidationException ex,
-      HttpHeaders headers,
-      HttpStatusCode status,
-      WebRequest request) {
+      @NonNull HandlerMethodValidationException ex,
+      @NonNull HttpHeaders headers,
+      @NonNull HttpStatusCode status,
+      @NonNull WebRequest request) {
 
     ErrorCode errorCode =
         ex.isForReturnValue() ? ErrorCode.INTERNAL_SERVER_ERROR : ErrorCode.VALIDATION_ERROR;
@@ -77,10 +78,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   // HTTP 메시지 변환 오류를 처리하는 핸들러 (예: JSON 파싱 오류)
   @Override
   protected ResponseEntity<Object> handleHttpMessageNotReadable(
-      HttpMessageNotReadableException ex,
-      HttpHeaders headers,
-      HttpStatusCode status,
-      WebRequest request) {
+      @NonNull HttpMessageNotReadableException ex,
+      @NonNull HttpHeaders headers,
+      @NonNull HttpStatusCode status,
+      @NonNull WebRequest request) {
 
     ProblemDetail problem =
         newProblemDetail(ErrorCode.INVALID_REQUEST, "Request body is missing or malformed");
@@ -90,7 +91,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   // 요청 파라미터 타입 불일치 오류를 처리하는 핸들러
   @Override
   protected ResponseEntity<Object> handleTypeMismatch(
-      TypeMismatchException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+      @NonNull TypeMismatchException ex,
+      @NonNull HttpHeaders headers,
+      @NonNull HttpStatusCode status,
+      @NonNull WebRequest request) {
 
     ProblemDetail problem =
         newProblemDetail(ErrorCode.INVALID_REQUEST, "A request parameter has an invalid type");
@@ -100,12 +104,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   // 그 외 모든 예외를 처리하는 핸들러 (예상치 못한 서버 오류)
   @ExceptionHandler(Exception.class)
-  public ResponseEntity<Object> handleUnexpectedEntityException(Exception ex, WebRequest request) {
+  public ResponseEntity<Object> handleUnexpectedEntityException(
+      @NonNull Exception ex, @NonNull WebRequest request) {
     ProblemDetail problem =
         newProblemDetail(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 
     return handleExceptionInternal(
-        ex, problem, null, ErrorCode.INTERNAL_SERVER_ERROR.status(), request);
+        ex, problem, new HttpHeaders(), ErrorCode.INTERNAL_SERVER_ERROR.status(), request);
   }
 
   private ProblemDetail newProblemDetail(ErrorCode errorCode, String detail) {

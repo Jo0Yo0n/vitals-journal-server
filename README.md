@@ -4,7 +4,7 @@
 
 ## 기술 스택
 - Java 17
-- Spring Boot 4
+- Spring Boot 3.5.x
 - PostgreSQL 18
 - Flyway
 
