@@ -29,8 +29,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   public ResponseEntity<Object> handleBusinessException(
       @NonNull BusinessException ex, @NonNull WebRequest request) {
     ProblemDetail problem = newProblemDetail(ex.getErrorCode(), ex.getErrorCode().title());
-    problem.setType(ex.getErrorCode().type());
-    problem.setTitle(ex.getErrorCode().title());
 
     return handleExceptionInternal(
         ex, problem, new HttpHeaders(), ex.getErrorCode().status(), request);
