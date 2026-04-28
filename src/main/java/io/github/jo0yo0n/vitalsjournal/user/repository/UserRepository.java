@@ -6,11 +6,11 @@ import org.springframework.data.repository.Repository;
 
 public interface UserRepository extends Repository<User, Long> {
 
-  Optional<User> findByEmailAndDeletedAtIsNull(String email);
+  Optional<User> findByEmail(String email);
 
-  boolean existsByEmailAndDeletedAtIsNull(String email);
+  boolean existsByEmail(String email);
 
-  boolean existsByNicknameAndDeletedAtIsNull(String nickname);
+  boolean existsByNickname(String nickname);
 
   User saveAndFlush(User user);
 }

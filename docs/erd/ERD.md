@@ -79,6 +79,18 @@ health_record 1 ── 0..1 alert
 ### constraints / indexes
 
 ```sql
+ALTER TABLE users
+  ADD CONSTRAINT ck_users_email_length
+  CHECK (char_length(email::text) <= 320);
+
+ALTER TABLE users
+  ADD CONSTRAINT ck_users_nickname_length
+  CHECK (char_length(nickname) >= 1 AND char_length(nickname) <= 50);
+
+ALTER TABLE users
+   ADD CONSTRAINT ck_users_nickname_not_blank
+  CHECK (char_length(btrim(nickname)) >= 1);
+
 CREATE UNIQUE INDEX ux_users_email ON users(email);
 CREATE UNIQUE INDEX ux_users_nickname ON users(nickname);
 ```
@@ -93,10 +105,9 @@ CREATE UNIQUE INDEX ux_users_nickname ON users(nickname);
 
 ## 4. health_record
 
-사용자가 입력한 심박/혈압 측정 기록입니다.
+사용자별 건강 측정 기록입니다.
 
 ### columns
-
 - `id`
   - PK, BIGSERIAL
 - `user_id`

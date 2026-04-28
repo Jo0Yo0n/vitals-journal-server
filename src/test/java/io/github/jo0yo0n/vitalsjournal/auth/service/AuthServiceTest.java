@@ -46,20 +46,20 @@ class AuthServiceTest {
   @DisplayName("이미 존재하는 email로 회원가입하면 EmailAlreadyExistsException 발생")
   @Test
   void registerEmailAlreadyExists() {
-    given(userRepository.existsByEmailAndDeletedAtIsNull("existing-email")).willReturn(true);
+    given(userRepository.existsByEmail("existing-email")).willReturn(true);
 
     assertThatThrownBy(() -> authService.register("existing-email", "password", "nickname"))
         .isInstanceOf(EmailAlreadyExistsException.class);
 
-    then(userRepository).should(never()).existsByNicknameAndDeletedAtIsNull(anyString());
+    then(userRepository).should(never()).existsByNickname(anyString());
     then(userRepository).should(never()).saveAndFlush(any());
   }
 
   @DisplayName("이미 존재하는 nickname으로 회원가입하면 NicknameAlreadyExistsException 발생")
   @Test
   void registerNicknameAlreadyExists() {
-    given(userRepository.existsByEmailAndDeletedAtIsNull("email")).willReturn(false);
-    given(userRepository.existsByNicknameAndDeletedAtIsNull("existing-nickname")).willReturn(true);
+    given(userRepository.existsByEmail("email")).willReturn(false);
+    given(userRepository.existsByNickname("existing-nickname")).willReturn(true);
 
     assertThatThrownBy(() -> authService.register("email", "password", "existing-nickname"))
         .isInstanceOf(NicknameAlreadyExistsException.class);
@@ -70,8 +70,8 @@ class AuthServiceTest {
   @DisplayName("회원가입이 성공하면 비밀번호를 인코딩해서 저장한다")
   @Test
   void registerSavesUserWithEncodedPassword() {
-    given(userRepository.existsByEmailAndDeletedAtIsNull("email")).willReturn(false);
-    given(userRepository.existsByNicknameAndDeletedAtIsNull("nickname")).willReturn(false);
+    given(userRepository.existsByEmail("email")).willReturn(false);
+    given(userRepository.existsByNickname("nickname")).willReturn(false);
 
     ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
 
@@ -88,13 +88,13 @@ class AuthServiceTest {
   @DisplayName("저장 중 이메일 unique constraint 위반이 발생하면 EmailAlreadyExistsException으로 변환")
   @Test
   void registerConvertsEmailUniqueConstraintViolation() {
-    given(userRepository.existsByEmailAndDeletedAtIsNull("email")).willReturn(false);
-    given(userRepository.existsByNicknameAndDeletedAtIsNull("nickname")).willReturn(false);
+    given(userRepository.existsByEmail("email")).willReturn(false);
+    given(userRepository.existsByNickname("nickname")).willReturn(false);
 
     DataIntegrityViolationException duplicateEmailException =
         new DataIntegrityViolationException(
             "could not execute statement",
-            new ConstraintViolationException("duplicate", null, "ux_users_email_active"));
+            new ConstraintViolationException("duplicate", null, "ux_users_email"));
 
     given(userRepository.saveAndFlush(any(User.class))).willThrow(duplicateEmailException);
 
@@ -105,13 +105,13 @@ class AuthServiceTest {
   @DisplayName("저장 중 닉네임 unique constraint 위반이 발생하면 NicknameAlreadyExistsException으로 변환")
   @Test
   void registerConvertsNicknameUniqueConstraintViolation() {
-    given(userRepository.existsByEmailAndDeletedAtIsNull("email")).willReturn(false);
-    given(userRepository.existsByNicknameAndDeletedAtIsNull("nickname")).willReturn(false);
+    given(userRepository.existsByEmail("email")).willReturn(false);
+    given(userRepository.existsByNickname("nickname")).willReturn(false);
 
     DataIntegrityViolationException duplicateNicknameException =
         new DataIntegrityViolationException(
             "could not execute statement",
-            new ConstraintViolationException("duplicate", null, "ux_users_nickname_active"));
+            new ConstraintViolationException("duplicate", null, "ux_users_nickname"));
 
     given(userRepository.saveAndFlush(any(User.class))).willThrow(duplicateNicknameException);
 
@@ -122,8 +122,8 @@ class AuthServiceTest {
   @DisplayName("알 수 없는 DB 제약 위반은 DataIntegrityViolationException을 던진다")
   @Test
   void registerThrowsDataIntegrityViolation() {
-    given(userRepository.existsByEmailAndDeletedAtIsNull("email")).willReturn(false);
-    given(userRepository.existsByNicknameAndDeletedAtIsNull("nickname")).willReturn(false);
+    given(userRepository.existsByEmail("email")).willReturn(false);
+    given(userRepository.existsByNickname("nickname")).willReturn(false);
 
     DataIntegrityViolationException unknownConstraintException =
         new DataIntegrityViolationException(
