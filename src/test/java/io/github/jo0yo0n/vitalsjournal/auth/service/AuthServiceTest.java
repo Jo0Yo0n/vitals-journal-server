@@ -94,7 +94,7 @@ class AuthServiceTest {
     DataIntegrityViolationException duplicateEmailException =
         new DataIntegrityViolationException(
             "could not execute statement",
-            new ConstraintViolationException("duplicate", null, "ux_users_email_active"));
+            new ConstraintViolationException("duplicate", null, "ux_users_email"));
 
     given(userRepository.saveAndFlush(any(User.class))).willThrow(duplicateEmailException);
 
@@ -111,7 +111,7 @@ class AuthServiceTest {
     DataIntegrityViolationException duplicateNicknameException =
         new DataIntegrityViolationException(
             "could not execute statement",
-            new ConstraintViolationException("duplicate", null, "ux_users_nickname_active"));
+            new ConstraintViolationException("duplicate", null, "ux_users_nickname"));
 
     given(userRepository.saveAndFlush(any(User.class))).willThrow(duplicateNicknameException);
 

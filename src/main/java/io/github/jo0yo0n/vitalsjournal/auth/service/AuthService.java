@@ -13,8 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
-  private static final String USERS_EMAIL_ACTIVE_UNIQUE = "ux_users_email_active";
-  private static final String USERS_NICKNAME_ACTIVE_UNIQUE = "ux_users_nickname_active";
+  private static final String USERS_EMAIL_UNIQUE = "ux_users_email";
+  private static final String USERS_NICKNAME_UNIQUE = "ux_users_nickname";
 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
@@ -41,10 +41,10 @@ public class AuthService {
     } catch (DataIntegrityViolationException e) {
       String constraintName = extractConstraintName(e);
 
-      if (USERS_EMAIL_ACTIVE_UNIQUE.equals(constraintName)) {
+      if (USERS_EMAIL_UNIQUE.equals(constraintName)) {
         throw new EmailAlreadyExistsException();
       }
-      if (USERS_NICKNAME_ACTIVE_UNIQUE.equals(constraintName)) {
+      if (USERS_NICKNAME_UNIQUE.equals(constraintName)) {
         throw new NicknameAlreadyExistsException();
       }
 
