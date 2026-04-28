@@ -87,6 +87,10 @@ ALTER TABLE users
   ADD CONSTRAINT ck_users_nickname_length
   CHECK (char_length(nickname) >= 1 AND char_length(nickname) <= 50);
 
+ALTER TABLE users
+   ADD CONSTRAINT ck_users_nickname_not_blank
+  CHECK (char_length(btrim(nickname)) >= 1);
+
 CREATE UNIQUE INDEX ux_users_email ON users(email);
 CREATE UNIQUE INDEX ux_users_nickname ON users(nickname);
 ```
