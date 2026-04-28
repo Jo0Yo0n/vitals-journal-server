@@ -10,6 +10,9 @@ CREATE TABLE users (
     CONSTRAINT ck_users_email_length CHECK (char_length(email::text) <= 320),
     CONSTRAINT ck_users_nickname_length CHECK (
         char_length(nickname) >= 1 AND char_length(nickname) <= 50
+    ),
+    CONSTRAINT ck_users_nickname_not_blank CHECK (
+        char_length(btrim(nickname)) >= 1
     )
 );
 
@@ -70,6 +73,10 @@ CREATE INDEX ix_health_record_user_measured_at
 CREATE INDEX ix_health_record_user_created_at
     ON health_record (user_id, created_at DESC);
 
+ALTER TABLE health_record
+    ADD CONSTRAINT uq_health_record_id_user
+        UNIQUE (id, user_id);
+
 
 CREATE TABLE threshold (
     id BIGSERIAL PRIMARY KEY,
@@ -98,11 +105,22 @@ CREATE INDEX ix_threshold_user
 
 CREATE TABLE alert (
     id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users (id),
-    health_record_id BIGINT NOT NULL REFERENCES health_record (id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL,
+    health_record_id BIGINT NOT NULL,
     message VARCHAR(255) NOT NULL,
     read_at TIMESTAMPTZ NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT ck_alert_read_at_not_before_created_at CHECK (
+        read_at IS NULL OR read_at >= created_at
+    ),
+
+    CONSTRAINT fk_alert_user
+        FOREIGN KEY (user_id) REFERENCES users (id),
+    CONSTRAINT fk_alert_health_record_user
+        FOREIGN KEY (health_record_id, user_id)
+            REFERENCES health_record (id, user_id)
+            ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX ux_alert_health_record
@@ -125,6 +143,11 @@ CREATE TABLE record_violation (
     CONSTRAINT ck_record_violation_metric CHECK (metric IN ('HR', 'BP_SYS', 'BP_DIA')),
     CONSTRAINT ck_record_violation_direction CHECK (
         direction IN ('below_min', 'above_max')
+    ),
+    CONSTRAINT ck_record_violation_direction_required_bound CHECK (
+        (direction = 'below_min' AND min_value_snapshot IS NOT NULL)
+        OR
+        (direction = 'above_max' AND max_value_snapshot IS NOT NULL)
     ),
     CONSTRAINT ck_record_violation_at_least_one_bound CHECK (
         min_value_snapshot IS NOT NULL OR max_value_snapshot IS NOT NULL
