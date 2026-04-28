@@ -105,6 +105,9 @@ CREATE UNIQUE INDEX ux_users_nickname ON users(nickname);
 
 ## 4. health_record
 
+사용자별 건강 측정 기록입니다.
+
+### columns
 - `id`
   - PK, BIGSERIAL
 - `user_id`
