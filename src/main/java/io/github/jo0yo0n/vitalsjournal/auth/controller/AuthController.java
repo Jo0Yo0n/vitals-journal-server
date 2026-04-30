@@ -31,6 +31,6 @@ public class AuthController {
   @PostMapping("/login")
   public AuthResponse login(@Valid @RequestBody LoginRequest request) {
     String token = authService.login(request.email(), request.password());
-    return new AuthResponse(token, "Bearer");
+    return AuthResponse.bearer(token);
   }
 }
