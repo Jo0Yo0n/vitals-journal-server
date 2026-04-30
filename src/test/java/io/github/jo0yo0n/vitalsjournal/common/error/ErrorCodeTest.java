@@ -7,7 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
-public class ErrorCodeTest {
+class ErrorCodeTest {
 
   @DisplayName("VALIDATION_ERROR는 400과 validation-error type을 가진다.")
   @Test
