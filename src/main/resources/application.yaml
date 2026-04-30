@@ -12,12 +12,6 @@ spring:
     problemdetails:
       enabled: true
 
-  web:
-    error:
-      include-message: never
-      include-stacktrace: never
-      include-exception: false
-
   jpa:
     hibernate:
       ddl-auto: validate
@@ -30,3 +24,9 @@ auth:
     public-key: ${JWT_PUBLIC_KEY_LOCATION}
     private-key: ${JWT_PRIVATE_KEY_LOCATION}
     access-token-ttl: 30m
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
