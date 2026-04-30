@@ -25,10 +25,16 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
+  private final ProblemDetailFactory problemDetailFactory;
+
+  public GlobalExceptionHandler(ProblemDetailFactory problemDetailFactory) {
+    this.problemDetailFactory = problemDetailFactory;
+  }
+
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<Object> handleBusinessException(
       @NonNull BusinessException ex, @NonNull WebRequest request) {
-    ProblemDetail problem = newProblemDetail(ex.getErrorCode(), ex.detail());
+    ProblemDetail problem = problemDetailFactory.create(ex.getErrorCode(), ex.detail());
 
     return handleExceptionInternal(
         ex, problem, new HttpHeaders(), ex.getErrorCode().status(), request);
@@ -44,7 +50,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
       @NonNull WebRequest request) {
 
     ProblemDetail problem =
-        newProblemDetail(ErrorCode.VALIDATION_ERROR, "Request validation failed");
+        problemDetailFactory.create(ErrorCode.VALIDATION_ERROR, "Request validation failed");
     problem.setProperty("errors", extractBindingErrors(ex.getBindingResult()));
 
     return handleExceptionInternal(ex, problem, headers, status, request);
@@ -67,7 +73,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             ? "Method return value validation failed"
             : "Request validation failed";
 
-    ProblemDetail problem = newProblemDetail(errorCode, detail);
+    ProblemDetail problem = problemDetailFactory.create(errorCode, detail);
     if (!ex.isForReturnValue()) {
       problem.setProperty("errors", extractMethodValidationErrors(ex));
     }
@@ -84,7 +90,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
       @NonNull WebRequest request) {
 
     ProblemDetail problem =
-        newProblemDetail(ErrorCode.INVALID_REQUEST, "Request body is missing or malformed");
+        problemDetailFactory.create(
+            ErrorCode.INVALID_REQUEST, "Request body is missing or malformed");
     return handleExceptionInternal(ex, problem, headers, status, request);
   }
 
@@ -97,7 +104,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
       @NonNull WebRequest request) {
 
     ProblemDetail problem =
-        newProblemDetail(ErrorCode.INVALID_REQUEST, "A request parameter has an invalid type");
+        problemDetailFactory.create(
+            ErrorCode.INVALID_REQUEST, "A request parameter has an invalid type");
 
     return handleExceptionInternal(ex, problem, headers, status, request);
   }
@@ -107,18 +115,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   public ResponseEntity<Object> handleUnexpectedEntityException(
       @NonNull Exception ex, @NonNull WebRequest request) {
     ProblemDetail problem =
-        newProblemDetail(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
+        problemDetailFactory.create(
+            ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 
     return handleExceptionInternal(
         ex, problem, new HttpHeaders(), ErrorCode.INTERNAL_SERVER_ERROR.status(), request);
-  }
-
-  private ProblemDetail newProblemDetail(ErrorCode errorCode, String detail) {
-    ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(errorCode.status(), detail);
-    problemDetail.setType(errorCode.type());
-    problemDetail.setTitle(errorCode.title());
-    problemDetail.setProperty("errorCode", errorCode.name());
-    return problemDetail;
   }
 
   // BindingResult에서 발생한 검증 오류를 추출하여 InvalidParam 리스트로 변환하는 메서드
