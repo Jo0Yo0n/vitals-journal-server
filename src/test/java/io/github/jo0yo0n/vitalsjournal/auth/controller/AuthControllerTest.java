@@ -1,6 +1,7 @@
 package io.github.jo0yo0n.vitalsjournal.auth.controller;
 
 import static org.hamcrest.Matchers.hasItems;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -9,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.github.jo0yo0n.vitalsjournal.auth.exception.EmailAlreadyExistsException;
+import io.github.jo0yo0n.vitalsjournal.auth.exception.InvalidCredentialsException;
 import io.github.jo0yo0n.vitalsjournal.auth.exception.NicknameAlreadyExistsException;
 import io.github.jo0yo0n.vitalsjournal.auth.service.AuthService;
 import io.github.jo0yo0n.vitalsjournal.common.error.GlobalExceptionHandler;
@@ -242,5 +244,73 @@ class AuthControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
         .andExpect(jsonPath("$.errors[*].name").value(hasItems("password")));
+  }
+
+  @DisplayName("로그인이 성공하면 accessToken과 tokenType을 반환한다")
+  @Test
+  void loginSuccess() throws Exception {
+    // given
+    given(authService.login("test@example.com", "password")).willReturn("access-token");
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "test@example.com",
+                      "password": "password"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.accessToken").value("access-token"))
+        .andExpect(jsonPath("$.tokenType").value("Bearer"));
+
+    then(authService).should().login("test@example.com", "password");
+  }
+
+  @DisplayName("로그인 요청의 email/password가 유효하지 않으면 400 VALIDATION_ERROR")
+  @Test
+  void loginValidationError() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "invalid-email",
+                      "password": "short"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.errors[*].name").value(hasItems("email", "password")));
+  }
+
+  @DisplayName("로그인 credential이 유효하지 않으면 401 INVALID_CREDENTIALS")
+  @Test
+  void loginInvalidCredentials() throws Exception {
+    doThrow(new InvalidCredentialsException())
+        .when(authService)
+        .login("test@example.com", "wrong-password");
+
+    mockMvc
+        .perform(
+            post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "test@example.com",
+                      "password": "wrong-password"
+                    }
+                    """))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.errorCode").value("INVALID_CREDENTIALS"));
+
+    then(authService).should().login("test@example.com", "wrong-password");
   }
 }
