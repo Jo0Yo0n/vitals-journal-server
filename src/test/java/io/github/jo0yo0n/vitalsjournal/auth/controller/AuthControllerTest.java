@@ -14,6 +14,7 @@ import io.github.jo0yo0n.vitalsjournal.auth.exception.InvalidCredentialsExceptio
 import io.github.jo0yo0n.vitalsjournal.auth.exception.NicknameAlreadyExistsException;
 import io.github.jo0yo0n.vitalsjournal.auth.service.AuthService;
 import io.github.jo0yo0n.vitalsjournal.common.error.GlobalExceptionHandler;
+import io.github.jo0yo0n.vitalsjournal.common.error.ProblemDetailFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, ProblemDetailFactory.class})
 @SuppressWarnings("null")
 class AuthControllerTest {
 

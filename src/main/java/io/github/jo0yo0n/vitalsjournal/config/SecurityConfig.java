@@ -13,6 +13,12 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
 
+  private final ProblemAuthenticationEntryPoint problemAuthenticationEntryPoint;
+
+  public SecurityConfig(ProblemAuthenticationEntryPoint problemAuthenticationEntryPoint) {
+    this.problemAuthenticationEntryPoint = problemAuthenticationEntryPoint;
+  }
+
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http.csrf(AbstractHttpConfigurer::disable)
@@ -31,7 +37,11 @@ public class SecurityConfig {
                     .permitAll()
                     .anyRequest()
                     .authenticated())
-        .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+        .oauth2ResourceServer(
+            oauth2 ->
+                oauth2
+                    .authenticationEntryPoint(problemAuthenticationEntryPoint)
+                    .jwt(Customizer.withDefaults()));
 
     return http.build();
   }

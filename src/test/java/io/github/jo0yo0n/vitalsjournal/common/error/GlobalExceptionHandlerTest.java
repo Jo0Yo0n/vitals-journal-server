@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ExceptionTestController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, ProblemDetailFactory.class})
 @SuppressWarnings("null")
 class GlobalExceptionHandlerTest {
 
