@@ -49,4 +49,8 @@ public class User extends CreatedTimeEntity {
   public boolean matchesPassword(String rawPassword, PasswordEncoder passwordEncoder) {
     return passwordEncoder.matches(rawPassword, this.hashedPassword);
   }
+
+  public Long getId() {
+    return id;
+  }
 }

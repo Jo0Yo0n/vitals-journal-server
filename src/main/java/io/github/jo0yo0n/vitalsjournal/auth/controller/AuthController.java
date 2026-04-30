@@ -1,6 +1,8 @@
 package io.github.jo0yo0n.vitalsjournal.auth.controller;
 
+import io.github.jo0yo0n.vitalsjournal.auth.controller.request.LoginRequest;
 import io.github.jo0yo0n.vitalsjournal.auth.controller.request.RegisterRequest;
+import io.github.jo0yo0n.vitalsjournal.auth.controller.response.AuthResponse;
 import io.github.jo0yo0n.vitalsjournal.auth.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -24,5 +26,11 @@ public class AuthController {
   @ResponseStatus(HttpStatus.CREATED)
   public void register(@Valid @RequestBody RegisterRequest request) {
     authService.register(request.email(), request.password(), request.nickname());
+  }
+
+  @PostMapping("/login")
+  public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+    String token = authService.login(request.email(), request.password());
+    return new AuthResponse(token, "Bearer");
   }
 }
