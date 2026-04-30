@@ -66,7 +66,7 @@ public class AuthService {
     }
   }
 
-  @Transactional
+  @Transactional(readOnly = true)
   public String login(String email, String rawPassword) {
 
     User user =

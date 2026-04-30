@@ -10,6 +10,7 @@ import java.net.URI;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +19,8 @@ public class ProblemAuthenticationEntryPoint implements AuthenticationEntryPoint
 
   private final ObjectMapper objectMapper;
   private final ProblemDetailFactory problemDetailFactory;
+  private final BearerTokenAuthenticationEntryPoint delegate =
+      new BearerTokenAuthenticationEntryPoint();
 
   public ProblemAuthenticationEntryPoint(
       ObjectMapper objectMapper, ProblemDetailFactory problemDetailFactory) {
@@ -31,6 +34,8 @@ public class ProblemAuthenticationEntryPoint implements AuthenticationEntryPoint
       HttpServletResponse response,
       AuthenticationException authException)
       throws IOException {
+
+    delegate.commence(request, response, authException);
 
     ErrorCode errorCode = ErrorCode.UNAUTHORIZED;
 
