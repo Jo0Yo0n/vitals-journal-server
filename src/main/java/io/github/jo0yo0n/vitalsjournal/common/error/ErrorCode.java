@@ -35,6 +35,12 @@ public enum ErrorCode {
       problemType("http://localhost:8080/problems/unauthorized"),
       "Unauthorized"),
 
+  // User
+  USER_NOT_FOUND(
+      HttpStatus.NOT_FOUND,
+      problemType("http://localhost:8080/problems/user-not-found"),
+      "User not found"),
+
   // Health Record
   HEALTH_RECORD_NOT_FOUND(
       HttpStatus.NOT_FOUND,
