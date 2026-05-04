@@ -107,6 +107,21 @@ paths:
                 $ref: "#/components/schemas/UserMeResponse"
         "401":
           $ref: "#/components/responses/UnauthorizedProblem"
+        "404":
+          description: 인증된 access token의 사용자가 존재하지 않습니다.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                example:
+                  value:
+                    type: http://localhost:8080/problems/user-not-found
+                    title: User not found
+                    status: 404
+                    detail: Authenticated user does not exist
+                    instance: /user/me
+                    errorCode: USER_NOT_FOUND
   /thresholds:
     get:
       tags:
@@ -426,6 +441,7 @@ components:
             - NICKNAME_ALREADY_EXISTS
             - INVALID_CREDENTIALS
             - UNAUTHORIZED
+            - USER_NOT_FOUND
             - HEALTH_RECORD_NOT_FOUND
             - HEALTH_RECORD_TYPE_MISMATCH
             - INVALID_THRESHOLD_RANGE
