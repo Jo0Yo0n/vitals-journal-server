@@ -21,8 +21,7 @@ public class UserController {
   }
 
   @GetMapping("/me")
-  public UserMeResponse getCurrentUser(@AuthenticationPrincipal Jwt jwt)
-      throws InvalidTokenSubjectException {
+  public UserMeResponse getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
     String subject = jwt.getSubject();
 
     if (subject == null || subject.isBlank()) {

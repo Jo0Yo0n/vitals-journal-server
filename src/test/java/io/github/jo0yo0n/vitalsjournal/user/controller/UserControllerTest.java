@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -74,7 +75,9 @@ class UserControllerTest {
   @Test
   void getCurrentUserMissingSubject() throws Exception {
     mockMvc
-        .perform(get("/user/me").with(jwt().jwt(jwt -> jwt.claim("subject", null))))
+        .perform(
+            get("/user/me")
+                .with(jwt().jwt(jwt -> jwt.claims(claims -> claims.remove(JwtClaimNames.SUB)))))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.detail").value("Token subject is missing or malformed"));
 
@@ -100,7 +103,8 @@ class UserControllerTest {
     mockMvc
         .perform(get("/user/me").with(jwt().jwt(jwt -> jwt.subject("1"))))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.detail").value("Authenticated user does not exist"));
+        .andExpect(jsonPath("$.detail").value("Authenticated user does not exist"))
+        .andExpect(jsonPath("$.instance").value("/user/me"));
 
     then(userService).should().findById(1L);
   }
