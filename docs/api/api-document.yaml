@@ -154,17 +154,11 @@ paths:
               $ref: "#/components/schemas/ThresholdUpsertRequest"
       responses:
         "200":
-          description: OK. 기존 threshold가 있으면 업데이트합니다.
+          description: OK. threshold를 생성하거나 업데이트합니다.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Threshold"
-        "201":
-          description: Created. 기존 threshold가 없으면 생성합니다.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Threshold"
+                $ref: "#/components/schemas/ThresholdResponse"
         "400":
           description: 요청 본문 검증 실패 또는 잘못된 threshold 범위
           content:
@@ -172,28 +166,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
               examples:
-                validation_error:
+                missing_bound:
                   value:
-                    type: http://localhost:8080/problems/validation-error
-                    title: Request validation failed
+                    type: http://localhost:8080/problems/invalid-threshold-range
+                    title: Invalid threshold range
                     status: 400
-                    detail: Request validation failed
+                    detail: Invalid threshold range
                     instance: /thresholds/HR
-                    errorCode: VALIDATION_ERROR
-                    errors:
-                      - name: minValue
-                        reason: required
+                    errorCode: INVALID_THRESHOLD_RANGE
                 invalid_range:
                   value:
                     type: http://localhost:8080/problems/invalid-threshold-range
                     title: Invalid threshold range
                     status: 400
-                    detail: minValue must be less than or equal to maxValue
+                    detail: Invalid threshold range
                     instance: /thresholds/HR
                     errorCode: INVALID_THRESHOLD_RANGE
-                    errors:
-                      - name: maxValue
-                        reason: invalid
         "401":
           $ref: "#/components/responses/UnauthorizedProblem"
   /health-records:
@@ -551,13 +539,10 @@ components:
         - HR
         - BP_SYS
         - BP_DIA
-    Threshold:
+    ThresholdResponse:
       type: object
       properties:
         id:
-          type: integer
-          format: int64
-        userId:
           type: integer
           format: int64
         metric:
@@ -570,19 +555,14 @@ components:
           type: number
           format: double
           nullable: true
-        createdAt:
-          type: string
-          format: date-time
         updatedAt:
           type: string
           format: date-time
       required:
         - id
-        - userId
         - metric
         - minValue
         - maxValue
-        - createdAt
         - updatedAt
       description: minValue와 maxValue 중 최소 하나는 null이 아니어야 합니다.
     ThresholdUpsertRequest:
@@ -618,7 +598,7 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/Threshold"
+            $ref: "#/components/schemas/ThresholdResponse"
       required:
         - items
     HealthRecord:
