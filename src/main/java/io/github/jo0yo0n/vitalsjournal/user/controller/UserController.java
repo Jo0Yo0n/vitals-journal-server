@@ -1,6 +1,6 @@
 package io.github.jo0yo0n.vitalsjournal.user.controller;
 
-import io.github.jo0yo0n.vitalsjournal.auth.exception.InvalidTokenSubjectException;
+import io.github.jo0yo0n.vitalsjournal.auth.util.JwtSubjects;
 import io.github.jo0yo0n.vitalsjournal.user.controller.response.UserMeResponse;
 import io.github.jo0yo0n.vitalsjournal.user.domain.User;
 import io.github.jo0yo0n.vitalsjournal.user.service.UserService;
@@ -22,18 +22,8 @@ public class UserController {
 
   @GetMapping("/me")
   public UserMeResponse getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
-    String subject = jwt.getSubject();
 
-    if (subject == null || subject.isBlank()) {
-      throw new InvalidTokenSubjectException();
-    }
-
-    Long userId;
-    try {
-      userId = Long.parseLong(subject);
-    } catch (NumberFormatException e) {
-      throw new InvalidTokenSubjectException();
-    }
+    Long userId = JwtSubjects.requireUserId(jwt);
 
     User user = userService.findById(userId);
     return UserMeResponse.of(userId, user.getEmail(), user.getNickname(), user.getCreatedAt());
