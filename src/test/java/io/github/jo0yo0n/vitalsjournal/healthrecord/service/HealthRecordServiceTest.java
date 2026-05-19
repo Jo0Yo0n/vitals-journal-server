@@ -96,19 +96,21 @@ class HealthRecordServiceTest {
     given(thresholdEvaluator.evaluate(any(HealthRecord.class), eq(thresholds)))
         .willReturn(List.of());
 
-    HealthRecord result = healthRecordService.saveHealthRecord(1L, command);
+    HealthRecordCreateResult result = healthRecordService.saveHealthRecord(1L, command);
+    HealthRecord healthRecord = result.healthRecord();
 
-    assertThat(result.getRecordType()).isEqualTo(HealthRecordType.HR);
-    assertThat(result.getMeasuredAt()).isEqualTo(Instant.parse("2026-05-11T10:00:00Z"));
-    assertThat(result.getBpm()).isEqualTo((short) 72);
-    assertThat(result.getSystolic()).isNull();
-    assertThat(result.getDiastolic()).isNull();
-    assertThat(result.getMemo()).isEqualTo("morning");
+    assertThat(healthRecord.getRecordType()).isEqualTo(HealthRecordType.HR);
+    assertThat(healthRecord.getMeasuredAt()).isEqualTo(Instant.parse("2026-05-11T10:00:00Z"));
+    assertThat(healthRecord.getBpm()).isEqualTo((short) 72);
+    assertThat(healthRecord.getSystolic()).isNull();
+    assertThat(healthRecord.getDiastolic()).isNull();
+    assertThat(healthRecord.getMemo()).isEqualTo("morning");
+    assertThat(result.violations()).isEmpty();
 
     then(userRepository).should().findById(1L);
     then(thresholdRepository).should().findByUserIdAndMetricIn(1L, List.of(ThresholdMetric.HR));
-    then(thresholdEvaluator).should().evaluate(result, thresholds);
-    then(healthRecordRepository).should().save(result);
+    then(thresholdEvaluator).should().evaluate(healthRecord, thresholds);
+    then(healthRecordRepository).should().save(healthRecord);
     then(recordViolationRepository).should(never()).saveAll(any());
     then(alertRepository).should(never()).save(any());
   }
@@ -138,18 +140,20 @@ class HealthRecordServiceTest {
     given(thresholdEvaluator.evaluate(any(HealthRecord.class), eq(thresholds)))
         .willReturn(List.of());
 
-    HealthRecord result = healthRecordService.saveHealthRecord(1L, command);
+    HealthRecordCreateResult result = healthRecordService.saveHealthRecord(1L, command);
+    HealthRecord healthRecord = result.healthRecord();
 
-    assertThat(result.getRecordType()).isEqualTo(HealthRecordType.BP);
-    assertThat(result.getBpm()).isNull();
-    assertThat(result.getSystolic()).isEqualTo((short) 120);
-    assertThat(result.getDiastolic()).isEqualTo((short) 80);
+    assertThat(healthRecord.getRecordType()).isEqualTo(HealthRecordType.BP);
+    assertThat(healthRecord.getBpm()).isNull();
+    assertThat(healthRecord.getSystolic()).isEqualTo((short) 120);
+    assertThat(healthRecord.getDiastolic()).isEqualTo((short) 80);
+    assertThat(result.violations()).isEmpty();
 
     then(thresholdRepository)
         .should()
         .findByUserIdAndMetricIn(1L, List.of(ThresholdMetric.BP_SYS, ThresholdMetric.BP_DIA));
-    then(thresholdEvaluator).should().evaluate(result, thresholds);
-    then(healthRecordRepository).should().save(result);
+    then(thresholdEvaluator).should().evaluate(healthRecord, thresholds);
+    then(healthRecordRepository).should().save(healthRecord);
     then(recordViolationRepository).should(never()).saveAll(any());
     then(alertRepository).should(never()).save(any());
   }
@@ -180,13 +184,17 @@ class HealthRecordServiceTest {
                   RecordViolation.ofAboveMax(
                       healthRecord, ThresholdMetric.HR, (short) 130, (short) 120));
             });
+    given(recordViolationRepository.saveAll(any()))
+        .willAnswer(invocation -> invocation.getArgument(0));
 
-    HealthRecord result = healthRecordService.saveHealthRecord(1L, command);
+    HealthRecordCreateResult result = healthRecordService.saveHealthRecord(1L, command);
+    HealthRecord healthRecord = result.healthRecord();
 
-    then(healthRecordRepository).should().save(result);
+    then(healthRecordRepository).should().save(healthRecord);
     then(recordViolationRepository).should().saveAll(violationCaptor.capture());
     then(alertRepository).should().save(any());
 
+    assertThat(result.violations()).hasSize(1);
     assertThat(violationCaptor.getValue()).hasSize(1);
   }
 

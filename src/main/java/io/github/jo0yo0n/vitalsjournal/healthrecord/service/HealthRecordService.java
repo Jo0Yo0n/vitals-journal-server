@@ -50,7 +50,7 @@ public class HealthRecordService {
   }
 
   @Transactional
-  public HealthRecord saveHealthRecord(Long userId, HealthRecordCreateCommand command) {
+  public HealthRecordCreateResult saveHealthRecord(Long userId, HealthRecordCreateCommand command) {
 
     if (command.isHeartRate() && !command.hasOnlyHeartRate()) {
       throw new HealthRecordTypeMismatchException(
@@ -84,13 +84,14 @@ public class HealthRecordService {
 
     healthRecordRepository.save(healthRecord);
 
+    List<RecordViolation> savedViolations = List.of();
     if (!violations.isEmpty()) {
-      recordViolationRepository.saveAll(violations);
+      savedViolations = recordViolationRepository.saveAll(violations);
 
       Alert alert = Alert.ofRangeViolation(user, healthRecord);
       alertRepository.save(alert);
     }
 
-    return healthRecord;
+    return new HealthRecordCreateResult(healthRecord, savedViolations);
   }
 }

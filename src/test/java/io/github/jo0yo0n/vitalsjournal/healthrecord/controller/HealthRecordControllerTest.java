@@ -17,6 +17,7 @@ import io.github.jo0yo0n.vitalsjournal.config.ProblemAuthenticationEntryPoint;
 import io.github.jo0yo0n.vitalsjournal.config.SecurityConfig;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.domain.HealthRecord;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.domain.HealthRecordType;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.service.HealthRecordCreateResult;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.service.HealthRecordService;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.service.command.HealthRecordCreateCommand;
 import io.github.jo0yo0n.vitalsjournal.user.domain.User;
@@ -114,7 +115,7 @@ class HealthRecordControllerTest {
     ReflectionTestUtils.setField(healthRecord, "createdAt", Instant.parse("2026-05-11T10:01:00Z"));
 
     given(healthRecordService.saveHealthRecord(eq(1L), any(HealthRecordCreateCommand.class)))
-        .willReturn(healthRecord);
+        .willReturn(new HealthRecordCreateResult(healthRecord, List.of()));
 
     mockMvc
         .perform(
@@ -130,16 +131,18 @@ class HealthRecordControllerTest {
                       "memo": "morning"
                     }
                     """))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(1L))
-        .andExpect(jsonPath("$.userId").doesNotExist())
-        .andExpect(jsonPath("$.type").value("HR"))
-        .andExpect(jsonPath("$.measuredAt").value("2026-05-11T10:00:00Z"))
-        .andExpect(jsonPath("$.bpm").value(72))
-        .andExpect(jsonPath("$.systolic").doesNotExist())
-        .andExpect(jsonPath("$.diastolic").doesNotExist())
-        .andExpect(jsonPath("$.memo").value("morning"))
-        .andExpect(jsonPath("$.createdAt").value("2026-05-11T10:01:00Z"));
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.healthRecord.id").value(1L))
+        .andExpect(jsonPath("$.healthRecord.userId").doesNotExist())
+        .andExpect(jsonPath("$.healthRecord.type").value("HR"))
+        .andExpect(jsonPath("$.healthRecord.measuredAt").value("2026-05-11T10:00:00Z"))
+        .andExpect(jsonPath("$.healthRecord.bpm").value(72))
+        .andExpect(jsonPath("$.healthRecord.systolic").doesNotExist())
+        .andExpect(jsonPath("$.healthRecord.diastolic").doesNotExist())
+        .andExpect(jsonPath("$.healthRecord.memo").value("morning"))
+        .andExpect(jsonPath("$.healthRecord.createdAt").value("2026-05-11T10:01:00Z"))
+        .andExpect(jsonPath("$.violations").isArray())
+        .andExpect(jsonPath("$.violations").isEmpty());
 
     HealthRecordCreateCommand expectedCommand =
         new HealthRecordCreateCommand(
