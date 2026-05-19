@@ -197,9 +197,9 @@ CREATE INDEX ix_health_record_user_created_at
   - VARCHAR(16) NOT NULL
   - `HR`, `BP_SYS`, `BP_DIA`
 - `min_value`
-  - NUMERIC(10,2) NULL
+  - SMALLINT NULL
 - `max_value`
-  - NUMERIC(10,2) NULL
+  - SMALLINT NULL
 - `created_at`
   - TIMESTAMPTZ NOT NULL DEFAULT now()
 - `updated_at`
@@ -254,14 +254,14 @@ threshold row를 직접 참조하지 않고, 평가 당시의 threshold 값을 s
   - VARCHAR(16) NOT NULL
   - `HR`, `BP_SYS`, `BP_DIA`
 - `measured_value`
-  - NUMERIC(10,2) NOT NULL
+  - SMALLINT NOT NULL
 - `min_value_snapshot`
-  - NUMERIC(10,2) NULL
+  - SMALLINT NULL
 - `max_value_snapshot`
-  - NUMERIC(10,2) NULL
+  - SMALLINT NULL
 - `direction`
   - VARCHAR(16) NOT NULL
-  - `below_min`, `above_max`
+  - `BELOW_MIN`, `ABOVE_MAX`
 - `evaluated_at`
   - TIMESTAMPTZ NOT NULL DEFAULT now()
 
@@ -274,7 +274,7 @@ ALTER TABLE record_violation
 
 ALTER TABLE record_violation
   ADD CONSTRAINT ck_record_violation_direction
-  CHECK (direction IN ('below_min', 'above_max'));
+  CHECK (direction IN ('BELOW_MIN', 'ABOVE_MAX'));
 
 ALTER TABLE record_violation
   ADD CONSTRAINT ck_record_violation_at_least_one_bound

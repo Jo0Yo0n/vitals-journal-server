@@ -548,12 +548,12 @@ components:
         metric:
           $ref: "#/components/schemas/Metric"
         minValue:
-          type: number
-          format: double
+          type: integer
+          format: int32
           nullable: true
         maxValue:
-          type: number
-          format: double
+          type: integer
+          format: int32
           nullable: true
         updatedAt:
           type: string
@@ -570,11 +570,11 @@ components:
       type: object
       properties:
         minValue:
-          type: number
-          format: double
+          type: integer
+          format: int32
         maxValue:
-          type: number
-          format: double
+          type: integer
+          format: int32
       oneOf:
         - title: minValue만 설정
           required:
@@ -705,21 +705,21 @@ components:
         metric:
           $ref: "#/components/schemas/Metric"
         measuredValue:
-          type: number
-          format: double
+          type: integer
+          format: int32
         minValueSnapshot:
-          type: number
-          format: double
+          type: integer
+          format: int32
           nullable: true
         maxValueSnapshot:
-          type: number
-          format: double
+          type: integer
+          format: int32
           nullable: true
         direction:
           type: string
           enum:
-            - below_min
-            - above_max
+            - BELOW_MIN
+            - ABOVE_MAX
         evaluatedAt:
           type: string
           format: date-time

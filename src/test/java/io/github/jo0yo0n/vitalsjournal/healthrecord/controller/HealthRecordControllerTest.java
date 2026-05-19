@@ -1,10 +1,13 @@
 package io.github.jo0yo0n.vitalsjournal.healthrecord.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,7 +16,9 @@ import io.github.jo0yo0n.vitalsjournal.common.error.ProblemDetailFactory;
 import io.github.jo0yo0n.vitalsjournal.config.ProblemAuthenticationEntryPoint;
 import io.github.jo0yo0n.vitalsjournal.config.SecurityConfig;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.domain.HealthRecord;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.domain.HealthRecordType;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.service.HealthRecordService;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.service.command.HealthRecordCreateCommand;
 import io.github.jo0yo0n.vitalsjournal.user.domain.User;
 import java.time.Instant;
 import java.util.List;
@@ -22,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -95,5 +101,99 @@ class HealthRecordControllerTest {
         .andExpect(jsonPath("$.detail").value("Authentication is required"));
 
     then(healthRecordService).should(never()).getHealthRecordsByUserId(1L);
+  }
+
+  @DisplayName("POST /health-records - HR 건강 기록을 저장하고 생성된 기록을 반환한다")
+  @Test
+  void saveHealthRecordSuccess() throws Exception {
+    User user = User.of("test@example.com", "hashed-password", "TestUser");
+    HealthRecord healthRecord =
+        HealthRecord.ofHeartRate(
+            user, Instant.parse("2026-05-11T10:00:00Z"), (short) 72, "morning");
+    ReflectionTestUtils.setField(healthRecord, "id", 1L);
+    ReflectionTestUtils.setField(healthRecord, "createdAt", Instant.parse("2026-05-11T10:01:00Z"));
+
+    given(healthRecordService.saveHealthRecord(eq(1L), any(HealthRecordCreateCommand.class)))
+        .willReturn(healthRecord);
+
+    mockMvc
+        .perform(
+            post("/health-records")
+                .with(jwt().jwt(jwt -> jwt.subject("1")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "type": "HR",
+                      "measuredAt": "2026-05-11T10:00:00Z",
+                      "bpm": 72,
+                      "memo": "morning"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(1L))
+        .andExpect(jsonPath("$.userId").doesNotExist())
+        .andExpect(jsonPath("$.type").value("HR"))
+        .andExpect(jsonPath("$.measuredAt").value("2026-05-11T10:00:00Z"))
+        .andExpect(jsonPath("$.bpm").value(72))
+        .andExpect(jsonPath("$.systolic").doesNotExist())
+        .andExpect(jsonPath("$.diastolic").doesNotExist())
+        .andExpect(jsonPath("$.memo").value("morning"))
+        .andExpect(jsonPath("$.createdAt").value("2026-05-11T10:01:00Z"));
+
+    HealthRecordCreateCommand expectedCommand =
+        new HealthRecordCreateCommand(
+            HealthRecordType.HR,
+            Instant.parse("2026-05-11T10:00:00Z"),
+            (short) 72,
+            null,
+            null,
+            "morning");
+
+    then(healthRecordService).should().saveHealthRecord(eq(1L), eq(expectedCommand));
+  }
+
+  @DisplayName("POST /health-records - 401 unauthorized")
+  @Test
+  void saveHealthRecordUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/health-records")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "type": "HR",
+                      "measuredAt": "2026-05-11T10:00:00Z",
+                      "bpm": 72
+                    }
+                    """))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.detail").value("Authentication is required"));
+
+    then(healthRecordService).should(never()).saveHealthRecord(eq(1L), any());
+  }
+
+  @DisplayName("POST /health-records - 필수 값이 없으면 400 Bad Request")
+  @Test
+  void saveHealthRecordValidationFailure() throws Exception {
+    mockMvc
+        .perform(
+            post("/health-records")
+                .with(jwt().jwt(jwt -> jwt.subject("1")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "type": "HR",
+                      "bpm": 72
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.errors[0].name").value("measuredAt"))
+        .andExpect(jsonPath("$.errors[0].reason").value("required"));
+
+    then(healthRecordService).should(never()).saveHealthRecord(eq(1L), any());
   }
 }

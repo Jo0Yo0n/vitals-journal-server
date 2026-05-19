@@ -1,13 +1,19 @@
 package io.github.jo0yo0n.vitalsjournal.healthrecord.controller;
 
 import io.github.jo0yo0n.vitalsjournal.auth.util.JwtSubjects;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.controller.request.HealthRecordCreateRequest;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.controller.response.HealthRecordListResponse;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.controller.response.HealthRecordResponse;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.domain.HealthRecord;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.service.HealthRecordService;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.service.command.HealthRecordCreateCommand;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,5 +38,24 @@ public class HealthRecordController {
             .toList();
 
     return new HealthRecordListResponse(items);
+  }
+
+  @PostMapping()
+  public HealthRecordResponse saveHealthRecord(
+      @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody HealthRecordCreateRequest request) {
+
+    Long userId = JwtSubjects.requireUserId(jwt);
+
+    HealthRecordCreateCommand command =
+        new HealthRecordCreateCommand(
+            request.type(),
+            request.measuredAt(),
+            request.bpm(),
+            request.systolic(),
+            request.diastolic(),
+            request.memo());
+
+    HealthRecord healthRecord = healthRecordService.saveHealthRecord(userId, command);
+    return HealthRecordResponse.from(healthRecord);
   }
 }
