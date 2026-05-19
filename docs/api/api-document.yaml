@@ -608,9 +608,6 @@ components:
         id:
           type: integer
           format: int64
-        userId:
-          type: integer
-          format: int64
         type:
           $ref: "#/components/schemas/HealthRecordType"
         measuredAt:
@@ -640,7 +637,6 @@ components:
           maxLength: 500
       required:
         - id
-        - userId
         - type
         - measuredAt
         - createdAt

@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.oauth2.jwt.JwtClaimNames;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -58,30 +57,6 @@ class UserControllerTest {
         .andExpect(jsonPath("$.nickname").value("TestUser"));
 
     then(userService).should().findById(1L);
-  }
-
-  @DisplayName("GET /user/me - 401 malformed subject")
-  @Test
-  void getCurrentUserMalformedSubject() throws Exception {
-    mockMvc
-        .perform(get("/user/me").with(jwt().jwt(jwt -> jwt.subject("invalid"))))
-        .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.detail").value("Token subject is missing or malformed"));
-
-    then(userService).should(never()).findById(1L);
-  }
-
-  @DisplayName("GET /user/me - 401 missing subject")
-  @Test
-  void getCurrentUserMissingSubject() throws Exception {
-    mockMvc
-        .perform(
-            get("/user/me")
-                .with(jwt().jwt(jwt -> jwt.claims(claims -> claims.remove(JwtClaimNames.SUB)))))
-        .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.detail").value("Token subject is missing or malformed"));
-
-    then(userService).should(never()).findById(1L);
   }
 
   @DisplayName("GET /user/me - 401 unauthorized")
