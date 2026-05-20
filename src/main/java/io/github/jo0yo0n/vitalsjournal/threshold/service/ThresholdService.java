@@ -6,7 +6,6 @@ import io.github.jo0yo0n.vitalsjournal.threshold.repository.ThresholdRepository;
 import io.github.jo0yo0n.vitalsjournal.user.domain.User;
 import io.github.jo0yo0n.vitalsjournal.user.exception.UserNotFoundException;
 import io.github.jo0yo0n.vitalsjournal.user.repository.UserRepository;
-import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,7 +28,7 @@ public class ThresholdService {
 
   @Transactional
   public Threshold upsertThreshold(
-      Long userId, ThresholdMetric metric, BigDecimal minValue, BigDecimal maxValue) {
+      Long userId, ThresholdMetric metric, Short minValue, Short maxValue) {
 
     return thresholdRepository
         .findByUserIdAndMetric(userId, metric)

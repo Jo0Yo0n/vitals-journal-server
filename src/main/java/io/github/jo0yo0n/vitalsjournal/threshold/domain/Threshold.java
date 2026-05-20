@@ -14,7 +14,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import java.time.Instant;
 import org.springframework.data.annotation.LastModifiedDate;
 
@@ -34,18 +33,17 @@ public class Threshold extends CreatedTimeEntity {
   @Column(name = "metric", nullable = false, length = 16)
   private ThresholdMetric metric;
 
-  @Column(name = "min_value", precision = 10, scale = 2)
-  private BigDecimal minValue;
+  @Column(name = "min_value")
+  private Short minValue;
 
-  @Column(name = "max_value", precision = 10, scale = 2)
-  private BigDecimal maxValue;
+  @Column(name = "max_value")
+  private Short maxValue;
 
   @LastModifiedDate
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
-  public static Threshold of(
-      User user, ThresholdMetric metric, BigDecimal minValue, BigDecimal maxValue) {
+  public static Threshold of(User user, ThresholdMetric metric, Short minValue, Short maxValue) {
 
     validateRange(minValue, maxValue);
 
@@ -57,19 +55,19 @@ public class Threshold extends CreatedTimeEntity {
     return threshold;
   }
 
-  public void updateRange(BigDecimal minValue, BigDecimal maxValue) {
+  public void updateRange(Short minValue, Short maxValue) {
     validateRange(minValue, maxValue);
 
     this.minValue = minValue;
     this.maxValue = maxValue;
   }
 
-  private static void validateRange(BigDecimal minValue, BigDecimal maxValue) {
+  private static void validateRange(Short minValue, Short maxValue) {
     if (minValue == null && maxValue == null) {
       throw new InvalidThresholdRangeException();
     }
 
-    if (minValue != null && maxValue != null && minValue.compareTo(maxValue) > 0) {
+    if (minValue != null && maxValue != null && minValue > maxValue) {
       throw new InvalidThresholdRangeException();
     }
   }
@@ -82,11 +80,11 @@ public class Threshold extends CreatedTimeEntity {
     return metric;
   }
 
-  public BigDecimal getMinValue() {
+  public Short getMinValue() {
     return minValue;
   }
 
-  public BigDecimal getMaxValue() {
+  public Short getMaxValue() {
     return maxValue;
   }
 

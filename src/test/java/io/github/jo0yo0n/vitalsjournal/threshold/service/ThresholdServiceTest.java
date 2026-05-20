@@ -13,7 +13,6 @@ import io.github.jo0yo0n.vitalsjournal.threshold.repository.ThresholdRepository;
 import io.github.jo0yo0n.vitalsjournal.user.domain.User;
 import io.github.jo0yo0n.vitalsjournal.user.exception.UserNotFoundException;
 import io.github.jo0yo0n.vitalsjournal.user.repository.UserRepository;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,8 +40,7 @@ class ThresholdServiceTest {
   @Test
   void getThresholdsByUserId() {
     User user = User.of("test@example.com", "hashed-password", "TestUser");
-    Threshold threshold =
-        Threshold.of(user, ThresholdMetric.HR, new BigDecimal("60"), new BigDecimal("100"));
+    Threshold threshold = Threshold.of(user, ThresholdMetric.HR, (short) 60, (short) 100);
 
     given(thresholdRepository.findByUserId(1L)).willReturn(List.of(threshold));
 
@@ -56,19 +54,17 @@ class ThresholdServiceTest {
   @Test
   void upsertThresholdUpdatesExistingThreshold() {
     User user = User.of("test@example.com", "hashed-password", "TestUser");
-    Threshold existingThreshold =
-        Threshold.of(user, ThresholdMetric.HR, new BigDecimal("60"), new BigDecimal("100"));
+    Threshold existingThreshold = Threshold.of(user, ThresholdMetric.HR, (short) 60, (short) 100);
 
     given(thresholdRepository.findByUserIdAndMetric(1L, ThresholdMetric.HR))
         .willReturn(Optional.of(existingThreshold));
 
     Threshold result =
-        thresholdService.upsertThreshold(
-            1L, ThresholdMetric.HR, new BigDecimal("70"), new BigDecimal("110"));
+        thresholdService.upsertThreshold(1L, ThresholdMetric.HR, (short) 70, (short) 110);
 
     assertThat(result).isSameAs(existingThreshold);
-    assertThat(existingThreshold.getMinValue()).isEqualByComparingTo(new BigDecimal("70"));
-    assertThat(existingThreshold.getMaxValue()).isEqualByComparingTo(new BigDecimal("110"));
+    assertThat(existingThreshold.getMinValue()).isEqualTo((short) 70);
+    assertThat(existingThreshold.getMaxValue()).isEqualTo((short) 110);
 
     then(userRepository).shouldHaveNoInteractions();
     then(thresholdRepository).should(never()).save(any());
@@ -78,8 +74,7 @@ class ThresholdServiceTest {
   @Test
   void upsertThresholdCreatesNewThreshold() {
     User user = User.of("test@example.com", "hashed-password", "TestUser");
-    Threshold newThreshold =
-        Threshold.of(user, ThresholdMetric.HR, new BigDecimal("70"), new BigDecimal("110"));
+    Threshold newThreshold = Threshold.of(user, ThresholdMetric.HR, (short) 70, (short) 110);
 
     given(userRepository.findById(1L)).willReturn(Optional.of(user));
     given(thresholdRepository.findByUserIdAndMetric(1L, ThresholdMetric.HR))
@@ -87,8 +82,7 @@ class ThresholdServiceTest {
     given(thresholdRepository.save(any(Threshold.class))).willReturn(newThreshold);
 
     Threshold result =
-        thresholdService.upsertThreshold(
-            1L, ThresholdMetric.HR, new BigDecimal("70"), new BigDecimal("110"));
+        thresholdService.upsertThreshold(1L, ThresholdMetric.HR, (short) 70, (short) 110);
 
     assertThat(result).isSameAs(newThreshold);
     then(userRepository).should().findById(1L);
@@ -103,9 +97,7 @@ class ThresholdServiceTest {
         .willReturn(Optional.empty());
 
     assertThatThrownBy(
-            () ->
-                thresholdService.upsertThreshold(
-                    1L, ThresholdMetric.HR, new BigDecimal("70"), new BigDecimal("110")))
+            () -> thresholdService.upsertThreshold(1L, ThresholdMetric.HR, (short) 70, (short) 110))
         .isInstanceOf(UserNotFoundException.class);
 
     then(userRepository).should().findById(1L);

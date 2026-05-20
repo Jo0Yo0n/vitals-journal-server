@@ -1,6 +1,8 @@
 package io.github.jo0yo0n.vitalsjournal.threshold.controller;
 
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -15,7 +17,6 @@ import io.github.jo0yo0n.vitalsjournal.threshold.domain.Threshold;
 import io.github.jo0yo0n.vitalsjournal.threshold.domain.ThresholdMetric;
 import io.github.jo0yo0n.vitalsjournal.threshold.service.ThresholdService;
 import io.github.jo0yo0n.vitalsjournal.user.domain.User;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -48,9 +49,8 @@ class ThresholdControllerTest {
   @Test
   void getAllThresholdsSuccess() throws Exception {
     User user = User.of("test@example.com", "hashed-password", "TestUser");
-    Threshold threshold1 =
-        Threshold.of(user, ThresholdMetric.HR, new BigDecimal("60"), new BigDecimal("100"));
-    Threshold threshold2 = Threshold.of(user, ThresholdMetric.BP_DIA, new BigDecimal("90"), null);
+    Threshold threshold1 = Threshold.of(user, ThresholdMetric.HR, (short) 60, (short) 100);
+    Threshold threshold2 = Threshold.of(user, ThresholdMetric.BP_DIA, (short) 90, null);
     ReflectionTestUtils.setField(threshold1, "id", 1L);
     ReflectionTestUtils.setField(threshold2, "id", 2L);
     ReflectionTestUtils.setField(threshold1, "updatedAt", Instant.parse("2026-05-05T00:00:00Z"));
@@ -72,20 +72,30 @@ class ThresholdControllerTest {
         .andExpect(jsonPath("$.items[1].minValue").value(90))
         .andExpect(jsonPath("$.items[1].maxValue").doesNotExist())
         .andExpect(jsonPath("$.items[1].updatedAt").value("2026-05-06T00:00:00Z"));
+
+    then(thresholdService).should().getThresholdsByUserId(1L);
+  }
+
+  @DisplayName("GET /thresholds - 401 unauthorized")
+  @Test
+  void getAllThresholdsUnauthorized() throws Exception {
+    mockMvc
+        .perform(get("/thresholds"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.detail").value("Authentication is required"));
+
+    then(thresholdService).should(never()).getThresholdsByUserId(1L);
   }
 
   @DisplayName("PUT /thresholds/{metric} - 성공")
   @Test
   void upsertThresholdSuccess() throws Exception {
     User user = User.of("test@example.com", "hashed-password", "TestUser");
-    Threshold threshold =
-        Threshold.of(user, ThresholdMetric.HR, new BigDecimal("60"), new BigDecimal("100"));
+    Threshold threshold = Threshold.of(user, ThresholdMetric.HR, (short) 60, (short) 100);
     ReflectionTestUtils.setField(threshold, "id", 1L);
     ReflectionTestUtils.setField(threshold, "updatedAt", Instant.parse("2026-05-05T00:00:00Z"));
 
-    given(
-            thresholdService.upsertThreshold(
-                1L, ThresholdMetric.HR, new BigDecimal("60"), new BigDecimal("100")))
+    given(thresholdService.upsertThreshold(1L, ThresholdMetric.HR, (short) 60, (short) 100))
         .willReturn(threshold);
 
     mockMvc
@@ -106,6 +116,10 @@ class ThresholdControllerTest {
         .andExpect(jsonPath("$.minValue").value(60))
         .andExpect(jsonPath("$.maxValue").value(100))
         .andExpect(jsonPath("$.updatedAt").value("2026-05-05T00:00:00Z"));
+
+    then(thresholdService)
+        .should()
+        .upsertThreshold(1L, ThresholdMetric.HR, (short) 60, (short) 100);
   }
 
   @DisplayName("PUT /thresholds/{metric} - 잘못된 metric이면 400 Bad Request")

@@ -50,6 +50,10 @@ public enum ErrorCode {
       HttpStatus.BAD_REQUEST,
       problemType("http://localhost:8080/problems/health-record-type-mismatch"),
       "Health record type mismatch"),
+  INVALID_BLOOD_PRESSURE_RANGE(
+      HttpStatus.BAD_REQUEST,
+      problemType("http://localhost:8080/problems/invalid-blood-pressure-range"),
+      "Invalid blood pressure range"),
 
   // Threshold
   THRESHOLD_NOT_FOUND(
