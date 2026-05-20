@@ -17,9 +17,12 @@ import io.github.jo0yo0n.vitalsjournal.config.ProblemAuthenticationEntryPoint;
 import io.github.jo0yo0n.vitalsjournal.config.SecurityConfig;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.domain.HealthRecord;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.domain.HealthRecordType;
-import io.github.jo0yo0n.vitalsjournal.healthrecord.service.HealthRecordCreateResult;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.exception.HealthRecordNotFoundException;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.service.HealthRecordService;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.service.HealthRecordWithViolationsResult;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.service.command.HealthRecordCreateCommand;
+import io.github.jo0yo0n.vitalsjournal.recordviolation.domain.RecordViolation;
+import io.github.jo0yo0n.vitalsjournal.threshold.domain.ThresholdMetric;
 import io.github.jo0yo0n.vitalsjournal.user.domain.User;
 import java.time.Instant;
 import java.util.List;
@@ -115,7 +118,7 @@ class HealthRecordControllerTest {
     ReflectionTestUtils.setField(healthRecord, "createdAt", Instant.parse("2026-05-11T10:01:00Z"));
 
     given(healthRecordService.saveHealthRecord(eq(1L), any(HealthRecordCreateCommand.class)))
-        .willReturn(new HealthRecordCreateResult(healthRecord, List.of()));
+        .willReturn(new HealthRecordWithViolationsResult(healthRecord, List.of()));
 
     mockMvc
         .perform(
@@ -198,5 +201,74 @@ class HealthRecordControllerTest {
         .andExpect(jsonPath("$.errors[0].reason").value("required"));
 
     then(healthRecordService).should(never()).saveHealthRecord(eq(1L), any());
+  }
+
+  @DisplayName("GET /health-records/{healthRecordId} - 건강 기록과 위반 내역을 반환한다")
+  @Test
+  void getHealthRecordSuccess() throws Exception {
+    User user = User.of("test@example.com", "hashed-password", "TestUser");
+    HealthRecord healthRecord =
+        HealthRecord.ofHeartRate(
+            user, Instant.parse("2026-05-11T10:00:00Z"), (short) 130, "after running");
+    RecordViolation violation =
+        RecordViolation.ofAboveMax(healthRecord, ThresholdMetric.HR, (short) 130, (short) 120);
+    ReflectionTestUtils.setField(healthRecord, "id", 1L);
+    ReflectionTestUtils.setField(healthRecord, "createdAt", Instant.parse("2026-05-11T10:01:00Z"));
+    ReflectionTestUtils.setField(violation, "id", 10L);
+    ReflectionTestUtils.setField(violation, "evaluatedAt", Instant.parse("2026-05-11T10:01:01Z"));
+
+    given(healthRecordService.getHealthRecord(1L, 1L))
+        .willReturn(new HealthRecordWithViolationsResult(healthRecord, List.of(violation)));
+
+    mockMvc
+        .perform(get("/health-records/1").with(jwt().jwt(jwt -> jwt.subject("1"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.healthRecord.id").value(1L))
+        .andExpect(jsonPath("$.healthRecord.userId").doesNotExist())
+        .andExpect(jsonPath("$.healthRecord.type").value("HR"))
+        .andExpect(jsonPath("$.healthRecord.measuredAt").value("2026-05-11T10:00:00Z"))
+        .andExpect(jsonPath("$.healthRecord.bpm").value(130))
+        .andExpect(jsonPath("$.healthRecord.systolic").doesNotExist())
+        .andExpect(jsonPath("$.healthRecord.diastolic").doesNotExist())
+        .andExpect(jsonPath("$.healthRecord.memo").value("after running"))
+        .andExpect(jsonPath("$.healthRecord.createdAt").value("2026-05-11T10:01:00Z"))
+        .andExpect(jsonPath("$.violations").isArray())
+        .andExpect(jsonPath("$.violations[0].id").value(10L))
+        .andExpect(jsonPath("$.violations[0].healthRecordId").value(1L))
+        .andExpect(jsonPath("$.violations[0].metric").value("HR"))
+        .andExpect(jsonPath("$.violations[0].measuredValue").value(130))
+        .andExpect(jsonPath("$.violations[0].minValueSnapshot").doesNotExist())
+        .andExpect(jsonPath("$.violations[0].maxValueSnapshot").value(120))
+        .andExpect(jsonPath("$.violations[0].direction").value("ABOVE_MAX"))
+        .andExpect(jsonPath("$.violations[0].evaluatedAt").value("2026-05-11T10:01:01Z"));
+
+    then(healthRecordService).should().getHealthRecord(1L, 1L);
+  }
+
+  @DisplayName("GET /health-records/{healthRecordId} - 401 unauthorized")
+  @Test
+  void getHealthRecordUnauthorized() throws Exception {
+    mockMvc
+        .perform(get("/health-records/1"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.detail").value("Authentication is required"));
+
+    then(healthRecordService).should(never()).getHealthRecord(eq(1L), eq(1L));
+  }
+
+  @DisplayName("GET /health-records/{healthRecordId} - 404 health record not found")
+  @Test
+  void getHealthRecordNotFound() throws Exception {
+    given(healthRecordService.getHealthRecord(123L, 1L))
+        .willThrow(new HealthRecordNotFoundException());
+
+    mockMvc
+        .perform(get("/health-records/123").with(jwt().jwt(jwt -> jwt.subject("1"))))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.detail").value("Health record not found"))
+        .andExpect(jsonPath("$.errorCode").value("HEALTH_RECORD_NOT_FOUND"))
+        .andExpect(jsonPath("$.instance").value("/health-records/123"));
+
+    then(healthRecordService).should().getHealthRecord(123L, 1L);
   }
 }

@@ -5,13 +5,13 @@ import io.github.jo0yo0n.vitalsjournal.recordviolation.controller.response.Recor
 import io.github.jo0yo0n.vitalsjournal.recordviolation.domain.RecordViolation;
 import java.util.List;
 
-public record HealthRecordCreateResponse(
+public record HealthRecordWithViolationsResponse(
     HealthRecordResponse healthRecord, List<RecordViolationResponse> violations) {
 
-  public static HealthRecordCreateResponse from(
+  public static HealthRecordWithViolationsResponse from(
       HealthRecord healthRecord, List<RecordViolation> violations) {
 
-    return new HealthRecordCreateResponse(
+    return new HealthRecordWithViolationsResponse(
         HealthRecordResponse.from(healthRecord),
         violations.stream().map(RecordViolationResponse::from).toList());
   }

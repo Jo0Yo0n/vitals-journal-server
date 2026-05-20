@@ -7,4 +7,6 @@ import org.springframework.data.repository.Repository;
 public interface RecordViolationRepository extends Repository<RecordViolation, Long> {
 
   List<RecordViolation> saveAll(Iterable<RecordViolation> violations);
+
+  List<RecordViolation> findByHealthRecordIdOrderByIdAsc(Long healthRecordId);
 }

@@ -9,6 +9,7 @@ import io.github.jo0yo0n.vitalsjournal.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,5 +78,35 @@ class HealthRecordRepositoryTest {
     assertThat(result)
         .extracting(HealthRecord::getId)
         .containsExactly(newRecord.getId(), oldRecord.getId());
+  }
+
+  @DisplayName("건강 기록 ID와 사용자 ID가 모두 일치하는 기록만 조회한다")
+  @Test
+  void findByIdAndUserIdKeepsUserDataIsolated() {
+    // given
+    User userA =
+        userRepository.saveAndFlush(User.of("detail-a@example.com", "hashed-password", "UserA"));
+    User userB =
+        userRepository.saveAndFlush(User.of("detail-b@example.com", "hashed-password", "UserB"));
+
+    HealthRecord userARecord =
+        healthRecordRepository.save(
+            HealthRecord.ofHeartRate(
+                userA, Instant.parse("2026-05-11T10:00:00Z"), (short) 72, null));
+    healthRecordRepository.save(
+        HealthRecord.ofHeartRate(userB, Instant.parse("2026-05-11T11:00:00Z"), (short) 80, null));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    // when
+    Optional<HealthRecord> found =
+        healthRecordRepository.findByIdAndUserId(userARecord.getId(), userA.getId());
+    Optional<HealthRecord> notFound =
+        healthRecordRepository.findByIdAndUserId(userARecord.getId(), userB.getId());
+
+    // then
+    assertThat(found).map(HealthRecord::getId).hasValue(userARecord.getId());
+    assertThat(notFound).isEmpty();
   }
 }

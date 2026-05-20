@@ -11,6 +11,7 @@ import static org.mockito.Mockito.never;
 import io.github.jo0yo0n.vitalsjournal.alert.repository.AlertRepository;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.domain.HealthRecord;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.domain.HealthRecordType;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.exception.HealthRecordNotFoundException;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.exception.HealthRecordTypeMismatchException;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.repository.HealthRecordRepository;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.service.command.HealthRecordCreateCommand;
@@ -76,6 +77,39 @@ class HealthRecordServiceTest {
     then(healthRecordRepository).should().findByUserIdOrderByMeasuredAtDesc(1L);
   }
 
+  @DisplayName("건강 기록 ID와 사용자 ID로 건강 기록과 위반 내역을 조회한다")
+  @Test
+  void getHealthRecord() {
+    User user = User.of("test@example.com", "hashed-password", "TestUser");
+    HealthRecord healthRecord =
+        HealthRecord.ofHeartRate(user, Instant.parse("2026-05-11T10:00:00Z"), (short) 130, null);
+    RecordViolation violation =
+        RecordViolation.ofAboveMax(healthRecord, ThresholdMetric.HR, (short) 130, (short) 120);
+
+    given(healthRecordRepository.findByIdAndUserId(10L, 1L)).willReturn(Optional.of(healthRecord));
+    given(recordViolationRepository.findByHealthRecordIdOrderByIdAsc(10L))
+        .willReturn(List.of(violation));
+
+    HealthRecordWithViolationsResult result = healthRecordService.getHealthRecord(10L, 1L);
+
+    assertThat(result.healthRecord()).isEqualTo(healthRecord);
+    assertThat(result.violations()).containsExactly(violation);
+    then(healthRecordRepository).should().findByIdAndUserId(10L, 1L);
+    then(recordViolationRepository).should().findByHealthRecordIdOrderByIdAsc(10L);
+  }
+
+  @DisplayName("건강 기록이 없으면 위반 내역을 조회하지 않고 예외를 던진다")
+  @Test
+  void getHealthRecordNotFound() {
+    given(healthRecordRepository.findByIdAndUserId(10L, 1L)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> healthRecordService.getHealthRecord(10L, 1L))
+        .isInstanceOf(HealthRecordNotFoundException.class);
+
+    then(healthRecordRepository).should().findByIdAndUserId(10L, 1L);
+    then(recordViolationRepository).should(never()).findByHealthRecordIdOrderByIdAsc(any());
+  }
+
   @DisplayName("HR 건강 기록을 저장하고 HR metric 기준으로 임계값을 평가한다")
   @Test
   void saveHealthRecordCreatesHeartRateRecord() {
@@ -96,7 +130,7 @@ class HealthRecordServiceTest {
     given(thresholdEvaluator.evaluate(any(HealthRecord.class), eq(thresholds)))
         .willReturn(List.of());
 
-    HealthRecordCreateResult result = healthRecordService.saveHealthRecord(1L, command);
+    HealthRecordWithViolationsResult result = healthRecordService.saveHealthRecord(1L, command);
     HealthRecord healthRecord = result.healthRecord();
 
     assertThat(healthRecord.getRecordType()).isEqualTo(HealthRecordType.HR);
@@ -140,7 +174,7 @@ class HealthRecordServiceTest {
     given(thresholdEvaluator.evaluate(any(HealthRecord.class), eq(thresholds)))
         .willReturn(List.of());
 
-    HealthRecordCreateResult result = healthRecordService.saveHealthRecord(1L, command);
+    HealthRecordWithViolationsResult result = healthRecordService.saveHealthRecord(1L, command);
     HealthRecord healthRecord = result.healthRecord();
 
     assertThat(healthRecord.getRecordType()).isEqualTo(HealthRecordType.BP);
@@ -187,7 +221,7 @@ class HealthRecordServiceTest {
     given(recordViolationRepository.saveAll(any()))
         .willAnswer(invocation -> invocation.getArgument(0));
 
-    HealthRecordCreateResult result = healthRecordService.saveHealthRecord(1L, command);
+    HealthRecordWithViolationsResult result = healthRecordService.saveHealthRecord(1L, command);
     HealthRecord healthRecord = result.healthRecord();
 
     then(healthRecordRepository).should().save(healthRecord);

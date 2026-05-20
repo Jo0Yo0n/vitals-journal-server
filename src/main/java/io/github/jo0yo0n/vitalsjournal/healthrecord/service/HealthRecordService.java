@@ -3,6 +3,7 @@ package io.github.jo0yo0n.vitalsjournal.healthrecord.service;
 import io.github.jo0yo0n.vitalsjournal.alert.domain.Alert;
 import io.github.jo0yo0n.vitalsjournal.alert.repository.AlertRepository;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.domain.HealthRecord;
+import io.github.jo0yo0n.vitalsjournal.healthrecord.exception.HealthRecordNotFoundException;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.exception.HealthRecordTypeMismatchException;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.repository.HealthRecordRepository;
 import io.github.jo0yo0n.vitalsjournal.healthrecord.service.command.HealthRecordCreateCommand;
@@ -50,7 +51,8 @@ public class HealthRecordService {
   }
 
   @Transactional
-  public HealthRecordCreateResult saveHealthRecord(Long userId, HealthRecordCreateCommand command) {
+  public HealthRecordWithViolationsResult saveHealthRecord(
+      Long userId, HealthRecordCreateCommand command) {
 
     if (command.isHeartRate() && !command.hasOnlyHeartRate()) {
       throw new HealthRecordTypeMismatchException(
@@ -92,6 +94,20 @@ public class HealthRecordService {
       alertRepository.save(alert);
     }
 
-    return new HealthRecordCreateResult(healthRecord, savedViolations);
+    return new HealthRecordWithViolationsResult(healthRecord, savedViolations);
+  }
+
+  @Transactional(readOnly = true)
+  public HealthRecordWithViolationsResult getHealthRecord(Long healthRecordId, Long userId) {
+
+    HealthRecord healthRecord =
+        healthRecordRepository
+            .findByIdAndUserId(healthRecordId, userId)
+            .orElseThrow(() -> new HealthRecordNotFoundException());
+
+    List<RecordViolation> violations =
+        recordViolationRepository.findByHealthRecordIdOrderByIdAsc(healthRecordId);
+
+    return new HealthRecordWithViolationsResult(healthRecord, violations);
   }
 }
