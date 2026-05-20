@@ -260,12 +260,12 @@ class HealthRecordControllerTest {
   @Test
   void getHealthRecordNotFound() throws Exception {
     given(healthRecordService.getHealthRecord(123L, 1L))
-        .willThrow(new HealthRecordNotFoundException());
+        .willThrow(new HealthRecordNotFoundException("No health record found for the given id"));
 
     mockMvc
         .perform(get("/health-records/123").with(jwt().jwt(jwt -> jwt.subject("1"))))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.detail").value("Health record not found"))
+        .andExpect(jsonPath("$.detail").value("No health record found for the given id"))
         .andExpect(jsonPath("$.errorCode").value("HEALTH_RECORD_NOT_FOUND"))
         .andExpect(jsonPath("$.instance").value("/health-records/123"));
 

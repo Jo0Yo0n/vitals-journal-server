@@ -260,6 +260,21 @@ paths:
                     errorCode: INVALID_BLOOD_PRESSURE_RANGE
         "401":
           $ref: "#/components/responses/UnauthorizedProblem"
+        "404":
+          description: 인증된 access token의 사용자가 존재하지 않습니다.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                user_not_found:
+                  value:
+                    type: http://localhost:8080/problems/user-not-found
+                    title: User not found
+                    status: 404
+                    detail: Authenticated user does not exist
+                    instance: /health-records
+                    errorCode: USER_NOT_FOUND
   /health-records/{healthRecordId}:
     get:
       tags:

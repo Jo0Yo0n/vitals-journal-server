@@ -103,7 +103,8 @@ public class HealthRecordService {
     HealthRecord healthRecord =
         healthRecordRepository
             .findByIdAndUserId(healthRecordId, userId)
-            .orElseThrow(() -> new HealthRecordNotFoundException());
+            .orElseThrow(
+                () -> new HealthRecordNotFoundException("No health record found for the given id"));
 
     List<RecordViolation> violations =
         recordViolationRepository.findByHealthRecordIdOrderByIdAsc(healthRecordId);
