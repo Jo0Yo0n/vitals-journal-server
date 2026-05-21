@@ -20,19 +20,18 @@ public class AlertService {
 
   @Transactional(readOnly = true)
   public List<Alert> getAlerts(Long userId) {
-    return alertRepository.findByUser_IdOrderByCreatedAtDesc(userId);
+    return alertRepository.findByUserIdOrderByCreatedAtDesc(userId);
   }
 
   @Transactional
   public Alert markAlertAsRead(Long alertId, Long userId) {
 
-    Alert alert =
-        alertRepository
-            .findByIdAndUser_Id(alertId, userId)
-            .orElseThrow(() -> new AlertNotFoundException("No alert found for the given id"));
+    Instant readAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
 
-    alert.markAsRead(Instant.now().truncatedTo(ChronoUnit.MICROS));
+    alertRepository.markAsReadIfUnread(alertId, userId, readAt);
 
-    return alert;
+    return alertRepository
+        .findByIdAndUserId(alertId, userId)
+        .orElseThrow(() -> new AlertNotFoundException("No alert found for the given id"));
   }
 }

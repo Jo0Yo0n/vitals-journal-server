@@ -105,9 +105,9 @@ class AlertControllerTest {
     HealthRecord healthRecord =
         HealthRecord.ofHeartRate(user, Instant.parse("2026-05-11T10:00:00Z"), (short) 130, null);
     Alert alert = Alert.ofRangeViolation(user, healthRecord);
-    alert.markAsRead(Instant.parse("2026-05-11T10:02:00Z"));
     ReflectionTestUtils.setField(healthRecord, "id", 10L);
     ReflectionTestUtils.setField(alert, "id", 1L);
+    ReflectionTestUtils.setField(alert, "readAt", Instant.parse("2026-05-11T10:02:00Z"));
     ReflectionTestUtils.setField(alert, "createdAt", Instant.parse("2026-05-11T10:01:00Z"));
 
     given(alertService.markAlertAsRead(1L, 1L)).willReturn(alert);
