@@ -4,6 +4,7 @@ import io.github.jo0yo0n.vitalsjournal.alert.domain.Alert;
 import io.github.jo0yo0n.vitalsjournal.alert.exception.AlertNotFoundException;
 import io.github.jo0yo0n.vitalsjournal.alert.repository.AlertRepository;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +31,7 @@ public class AlertService {
             .findByIdAndUserId(alertId, userId)
             .orElseThrow(() -> new AlertNotFoundException("No alert found for the given id"));
 
-    alert.markAsRead(Instant.now());
+    alert.markAsRead(Instant.now().truncatedTo(ChronoUnit.MICROS));
 
     return alert;
   }
