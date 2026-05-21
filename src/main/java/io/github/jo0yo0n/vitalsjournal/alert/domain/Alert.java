@@ -44,4 +44,20 @@ public class Alert extends CreatedTimeEntity {
     alert.message = "설정한 건강 기준을 벗어난 기록이 있습니다.";
     return alert;
   }
+
+  public Long getId() {
+    return id;
+  }
+
+  public Long getHealthRecordId() {
+    return healthRecord.getId();
+  }
+
+  public String getMessage() {
+    return message;
+  }
+
+  public Instant getReadAt() {
+    return readAt;
+  }
 }
