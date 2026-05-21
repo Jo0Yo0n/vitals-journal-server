@@ -1,5 +1,6 @@
 package io.github.jo0yo0n.vitalsjournal.alert.controller;
 
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -94,7 +95,7 @@ class AlertControllerTest {
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.detail").value("Authentication is required"));
 
-    then(alertService).should(never()).getAlerts(1L);
+    then(alertService).should(never()).getAlerts(anyLong());
   }
 
   @DisplayName("PATCH /alerts/{alertId}/read - 알림을 읽음 처리하고 반환한다")
@@ -132,7 +133,7 @@ class AlertControllerTest {
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.detail").value("Authentication is required"));
 
-    then(alertService).should(never()).markAlertAsRead(1L, 1L);
+    then(alertService).should(never()).markAlertAsRead(anyLong(), anyLong());
   }
 
   @DisplayName("PATCH /alerts/{alertId}/read - 404 alert not found")

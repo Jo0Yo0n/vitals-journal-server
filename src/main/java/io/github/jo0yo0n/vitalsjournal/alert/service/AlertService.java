@@ -20,7 +20,7 @@ public class AlertService {
 
   @Transactional(readOnly = true)
   public List<Alert> getAlerts(Long userId) {
-    return alertRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    return alertRepository.findByUser_IdOrderByCreatedAtDesc(userId);
   }
 
   @Transactional
@@ -28,7 +28,7 @@ public class AlertService {
 
     Alert alert =
         alertRepository
-            .findByIdAndUserId(alertId, userId)
+            .findByIdAndUser_Id(alertId, userId)
             .orElseThrow(() -> new AlertNotFoundException("No alert found for the given id"));
 
     alert.markAsRead(Instant.now().truncatedTo(ChronoUnit.MICROS));

@@ -52,7 +52,7 @@ class AlertRepositoryTest {
     entityManager.clear();
 
     // when
-    List<Alert> result = alertRepository.findByUserIdOrderByCreatedAtDesc(userA.getId());
+    List<Alert> result = alertRepository.findByUser_IdOrderByCreatedAtDesc(userA.getId());
 
     // then
     assertThat(result).extracting(Alert::getId).containsExactly(userAAlert.getId());
@@ -84,7 +84,7 @@ class AlertRepositoryTest {
     entityManager.clear();
 
     // when
-    List<Alert> result = alertRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+    List<Alert> result = alertRepository.findByUser_IdOrderByCreatedAtDesc(user.getId());
 
     // then
     assertThat(result).extracting(Alert::getId).containsExactly(newAlert.getId(), oldAlert.getId());
@@ -115,8 +115,9 @@ class AlertRepositoryTest {
     entityManager.clear();
 
     // when
-    Optional<Alert> found = alertRepository.findByIdAndUserId(userAAlert.getId(), userA.getId());
-    Optional<Alert> notFound = alertRepository.findByIdAndUserId(userAAlert.getId(), userB.getId());
+    Optional<Alert> found = alertRepository.findByIdAndUser_Id(userAAlert.getId(), userA.getId());
+    Optional<Alert> notFound =
+        alertRepository.findByIdAndUser_Id(userAAlert.getId(), userB.getId());
 
     // then
     assertThat(found).map(Alert::getId).hasValue(userAAlert.getId());
