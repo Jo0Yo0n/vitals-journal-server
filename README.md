@@ -18,9 +18,9 @@
 | 로그인 | 완료 | JWT Access Token 발급 |
 | 내 정보 조회 | 완료 | 인증된 사용자 정보 조회 |
 | Threshold 조회/설정 | 완료 | metric 단위 upsert |
-| 건강 기록 생성/조회 | 개발 중 | HR/BP 기록 생성 및 조회 |
-| Threshold 평가 | 개발 예정 | 건강 기록 생성 시 현재 threshold 기준으로 violation 판단 |
-| Alert | 개발 예정 | violation이 1개 이상 발생하면 건강 기록당 alert 1개 생성 |
+| 건강 기록 생성/조회 | 완료 | HR/BP 기록 생성 및 조회 |
+| Threshold 평가 | 완료 | 건강 기록 생성 시 현재 threshold 기준으로 violation 판단 |
+| Alert | 개발 중 | violation이 1개 이상 발생하면 건강 기록당 alert 1개 생성 |
 
 ---
 
@@ -50,11 +50,11 @@
 | GET | `/user/me` | 내 정보 조회 | O | 완료 |
 | GET | `/thresholds` | 내 threshold 목록 조회 | O | 완료 |
 | PUT | `/thresholds/{metric}` | metric 단위 threshold 생성/수정 | O | 완료 |
-| POST | `/health-records` | 건강 기록 생성 | O | 개발 중 |
-| GET | `/health-records` | 건강 기록 목록 조회 | O | 개발 중 |
-| GET | `/health-records/{healthRecordId}` | 건강 기록 상세 조회 | O | 개발 중 |
-| GET | `/alerts` | 알림 목록 조회 | O | 예정 |
-| PATCH | `/alerts/{alertId}/read` | 알림 읽음 처리 | O | 예정 |
+| POST | `/health-records` | 건강 기록 생성 | O | 완료 |
+| GET | `/health-records` | 건강 기록 목록 조회 | O | 완료 |
+| GET | `/health-records/{healthRecordId}` | 건강 기록 상세 조회 | O | 완료 |
+| GET | `/alerts` | 알림 목록 조회 | O | 개발 중 |
+| PATCH | `/alerts/{alertId}/read` | 알림 읽음 처리 | O | 개발 중 |
 
 ---
 
@@ -240,10 +240,6 @@ docker compose up -d
 ---
 
 ## 향후 계획
-
-1. HealthRecord 생성/목록/상세 조회 구현
-2. 기록 생성 시 threshold 평가 및 violation snapshot 저장
-3. violation 발생 시 Alert 생성
-4. Alert 목록 조회 및 읽음 처리 구현
-5. 백엔드 배포
-6. 최소 프론트엔드 연동
+1. Alert 목록 조회 및 읽음 처리 구현
+2. 백엔드 배포
+3. 최소 프론트엔드 연동
