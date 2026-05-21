@@ -2,11 +2,14 @@ package io.github.jo0yo0n.vitalsjournal.alert.controller;
 
 import io.github.jo0yo0n.vitalsjournal.alert.controller.response.AlertListResponse;
 import io.github.jo0yo0n.vitalsjournal.alert.controller.response.AlertResponse;
+import io.github.jo0yo0n.vitalsjournal.alert.domain.Alert;
 import io.github.jo0yo0n.vitalsjournal.alert.service.AlertService;
 import io.github.jo0yo0n.vitalsjournal.auth.util.JwtSubjects;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,5 +30,16 @@ public class AlertController {
 
     return new AlertListResponse(
         alertService.getAlerts(userId).stream().map(AlertResponse::from).toList());
+  }
+
+  @PatchMapping("/{alertId}/read")
+  public AlertResponse markAlertAsRead(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable Long alertId) {
+
+    Long userId = JwtSubjects.requireUserId(jwt);
+
+    Alert alert = alertService.markAlertAsRead(alertId, userId);
+
+    return AlertResponse.from(alert);
   }
 }

@@ -11,6 +11,7 @@ import io.github.jo0yo0n.vitalsjournal.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -87,6 +88,39 @@ class AlertRepositoryTest {
 
     // then
     assertThat(result).extracting(Alert::getId).containsExactly(newAlert.getId(), oldAlert.getId());
+  }
+
+  @DisplayName("알림 ID와 사용자 ID가 모두 일치하는 알림만 조회한다")
+  @Test
+  void findByIdAndUserIdKeepsUserDataIsolated() {
+    // given
+    User userA =
+        userRepository.saveAndFlush(User.of("detail-a@example.com", "hashed-password", "UserA"));
+    User userB =
+        userRepository.saveAndFlush(User.of("detail-b@example.com", "hashed-password", "UserB"));
+
+    HealthRecord userARecord =
+        healthRecordRepository.save(
+            HealthRecord.ofHeartRate(
+                userA, Instant.parse("2026-05-11T10:00:00Z"), (short) 130, null));
+    HealthRecord userBRecord =
+        healthRecordRepository.save(
+            HealthRecord.ofHeartRate(
+                userB, Instant.parse("2026-05-11T11:00:00Z"), (short) 140, null));
+
+    Alert userAAlert = alertRepository.save(Alert.ofRangeViolation(userA, userARecord));
+    alertRepository.save(Alert.ofRangeViolation(userB, userBRecord));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    // when
+    Optional<Alert> found = alertRepository.findByIdAndUserId(userAAlert.getId(), userA.getId());
+    Optional<Alert> notFound = alertRepository.findByIdAndUserId(userAAlert.getId(), userB.getId());
+
+    // then
+    assertThat(found).map(Alert::getId).hasValue(userAAlert.getId());
+    assertThat(notFound).isEmpty();
   }
 
   private void setCreatedAt(Long alertId, Instant createdAt) {

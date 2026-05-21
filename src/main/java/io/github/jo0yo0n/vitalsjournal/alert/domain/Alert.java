@@ -60,4 +60,10 @@ public class Alert extends CreatedTimeEntity {
   public Instant getReadAt() {
     return readAt;
   }
+
+  public void markAsRead(Instant readAt) {
+    if (this.readAt == null) {
+      this.readAt = readAt;
+    }
+  }
 }
