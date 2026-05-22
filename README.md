@@ -20,7 +20,7 @@
 | Threshold 조회/설정 | 완료 | metric 단위 upsert |
 | 건강 기록 생성/조회 | 완료 | HR/BP 기록 생성 및 조회 |
 | Threshold 평가 | 완료 | 건강 기록 생성 시 현재 threshold 기준으로 violation 판단 |
-| Alert | 개발 중 | violation이 1개 이상 발생하면 건강 기록당 alert 1개 생성 |
+| Alert | 완료 | violation이 1개 이상 발생하면 건강 기록당 alert 1개 생성 및 읽음 처리 |
 
 ---
 
@@ -53,8 +53,8 @@
 | POST | `/health-records` | 건강 기록 생성 | O | 완료 |
 | GET | `/health-records` | 건강 기록 목록 조회 | O | 완료 |
 | GET | `/health-records/{healthRecordId}` | 건강 기록 상세 조회 | O | 완료 |
-| GET | `/alerts` | 알림 목록 조회 | O | 개발 중 |
-| PATCH | `/alerts/{alertId}/read` | 알림 읽음 처리 | O | 개발 중 |
+| GET | `/alerts` | 알림 목록 조회 | O | 완료 |
+| PATCH | `/alerts/{alertId}/read` | 알림 읽음 처리 | O | 완료 |
 
 ---
 
