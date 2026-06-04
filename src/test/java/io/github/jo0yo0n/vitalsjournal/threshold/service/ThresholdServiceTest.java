@@ -56,6 +56,7 @@ class ThresholdServiceTest {
     User user = User.of("test@example.com", "hashed-password", "TestUser");
     Threshold existingThreshold = Threshold.of(user, ThresholdMetric.HR, (short) 60, (short) 100);
 
+    given(userRepository.findByIdForThresholdUpsert(1L)).willReturn(Optional.of(user));
     given(thresholdRepository.findByUserIdAndMetric(1L, ThresholdMetric.HR))
         .willReturn(Optional.of(existingThreshold));
 
@@ -66,7 +67,7 @@ class ThresholdServiceTest {
     assertThat(existingThreshold.getMinValue()).isEqualTo((short) 70);
     assertThat(existingThreshold.getMaxValue()).isEqualTo((short) 110);
 
-    then(userRepository).shouldHaveNoInteractions();
+    then(userRepository).should().findByIdForThresholdUpsert(1L);
     then(thresholdRepository).should(never()).save(any());
   }
 
@@ -76,7 +77,7 @@ class ThresholdServiceTest {
     User user = User.of("test@example.com", "hashed-password", "TestUser");
     Threshold newThreshold = Threshold.of(user, ThresholdMetric.HR, (short) 70, (short) 110);
 
-    given(userRepository.findById(1L)).willReturn(Optional.of(user));
+    given(userRepository.findByIdForThresholdUpsert(1L)).willReturn(Optional.of(user));
     given(thresholdRepository.findByUserIdAndMetric(1L, ThresholdMetric.HR))
         .willReturn(Optional.empty());
     given(thresholdRepository.save(any(Threshold.class))).willReturn(newThreshold);
@@ -85,23 +86,21 @@ class ThresholdServiceTest {
         thresholdService.upsertThreshold(1L, ThresholdMetric.HR, (short) 70, (short) 110);
 
     assertThat(result).isSameAs(newThreshold);
-    then(userRepository).should().findById(1L);
+    then(userRepository).should().findByIdForThresholdUpsert(1L);
     then(thresholdRepository).should().save(any(Threshold.class));
   }
 
   @DisplayName("기존 threshold가 없고 사용자도 없으면 UserNotFoundException이 발생한다")
   @Test
   void upsertThresholdUserNotFound() {
-    given(userRepository.findById(1L)).willReturn(Optional.empty());
-    given(thresholdRepository.findByUserIdAndMetric(1L, ThresholdMetric.HR))
-        .willReturn(Optional.empty());
+    given(userRepository.findByIdForThresholdUpsert(1L)).willReturn(Optional.empty());
 
     assertThatThrownBy(
             () -> thresholdService.upsertThreshold(1L, ThresholdMetric.HR, (short) 70, (short) 110))
         .isInstanceOf(UserNotFoundException.class);
 
-    then(userRepository).should().findById(1L);
-    then(thresholdRepository).should().findByUserIdAndMetric(1L, ThresholdMetric.HR);
+    then(userRepository).should().findByIdForThresholdUpsert(1L);
+    then(thresholdRepository).shouldHaveNoInteractions();
     then(thresholdRepository).should(never()).save(any());
   }
 }

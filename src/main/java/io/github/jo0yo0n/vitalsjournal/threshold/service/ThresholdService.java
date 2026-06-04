@@ -30,6 +30,9 @@ public class ThresholdService {
   public Threshold upsertThreshold(
       Long userId, ThresholdMetric metric, Short minValue, Short maxValue) {
 
+    User user =
+        userRepository.findByIdForThresholdUpsert(userId).orElseThrow(UserNotFoundException::new);
+
     return thresholdRepository
         .findByUserIdAndMetric(userId, metric)
         .map(
@@ -39,8 +42,6 @@ public class ThresholdService {
             })
         .orElseGet(
             () -> {
-              User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
-
               return thresholdRepository.save(Threshold.of(user, metric, minValue, maxValue));
             });
   }
