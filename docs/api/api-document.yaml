@@ -498,6 +498,8 @@ components:
           type: string
           minLength: 1
           maxLength: 50
+          pattern: "^\\S+$"
+          description: 공백 문자를 포함할 수 없습니다.
       required:
         - email
         - password
