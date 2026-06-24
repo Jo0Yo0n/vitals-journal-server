@@ -1,244 +1,293 @@
 # Vitals Journal Server
 
-심박수와 혈압을 기록하고, 사용자별 임계값을 기준으로 이상 징후를 평가해 앱 내 알림을 생성하는 모바일 앱 백엔드 서버입니다.
+사용자별 심박수와 혈압 기준을 설정하고, 건강 기록 생성 시점에 이상 징후를 평가해 앱 내 알림으로 연결하는 Spring Boot 백엔드 서버입니다.
 
-## 핵심 흐름
+---
+
+## 1. 프로젝트 상태
+
+| 항목 | 설명 |
+| --- | --- |
+| 백엔드 MVP | 회원가입, 로그인, 임계값 설정, 건강 기록 생성/조회, 위반 평가, 알림 조회/읽음 처리 |
+| API 문서 | `docs/api/api-document.yaml`, Swagger UI |
+| DB 마이그레이션 | Flyway 기반 schema 관리 |
+| 테스트 | 단위 테스트(Domain, Service), MVC 테스트(Controller), DB 테스트(Repository) |
+| CI/CD | GitHub Actions를 통한 자동화된 테스트 및 빌드 검증 |
 
 ```text
-회원가입 → 로그인 → 임계값 설정 → 건강 기록 입력 → 임계값 평가 → 알림 확인
+회원가입 -> 로그인 -> 임계값 설정 -> 건강 기록 입력 -> 임계값 평가 -> 알림 확인
 ```
 
 ---
 
-## 구현 상태
+## 2. 핵심 구현 흐름
 
-| 영역 | 상태 | 설명 |
-|------|------|------|
-| 회원가입 | 완료 | 이메일/닉네임 중복 검증, 비밀번호 해싱 |
-| 로그인 | 완료 | JWT Access Token 발급 |
-| 내 정보 조회 | 완료 | 인증된 사용자 정보 조회 |
-| Threshold 조회/설정 | 완료 | metric 단위 upsert |
-| 건강 기록 생성/조회 | 완료 | HR/BP 기록 생성 및 조회 |
-| Threshold 평가 | 완료 | 건강 기록 생성 시 현재 threshold 기준으로 violation 판단 |
-| Alert | 완료 | violation이 1개 이상 발생하면 건강 기록당 alert 1개 생성 및 읽음 처리 |
+```mermaid
+flowchart LR
+    U["User"] --> T["Threshold 설정"]
+    U --> R["HealthRecord 생성"]
+    R --> E["ThresholdEvaluator 평가"]
+    E -->|위반 없음| OK["기록만 저장"]
+    E -->|위반 있음| V["RecordViolation snapshot 저장"]
+    V --> A["Alert 생성"]
+    A --> D["알림에서 건강 기록 상세로 이동"]
+```
+
+### 구현 포인트
+
+| 구현 포인트 | 설명 | 이유 |
+| --- | --- | --- |
+| 규칙 기반 건강 기록 평가 | HR, BP 기록 생성 시 현재 사용자 threshold를 조회해 위반 여부를 판단 | 단순 CRUD를 넘어 도메인 규칙이 있는 흐름을 구현 |
+| Violation snapshot | threshold가 바뀌어도 과거 평가 결과가 변하지 않도록 `record_violation`에 평가 당시 기준 저장 | 데이터의 시간적 의미를 보존하는 설계 판단 |
+| BP metric 분리 평가 | 하나의 BP 기록을 `BP_SYS`, `BP_DIA` 기준으로 나누어 평가 | 실제 도메인 특성에 맞게 모델을 단순화 |
+| ProblemDetail 에러 응답 | validation, 인증 실패, 도메인 예외를 공통 형식으로 응답 | API 사용자가 실패 응답을 예측 가능하게 처리 |
+| DB constraint와 index | unique index, check constraint, FK, 조회 index를 Flyway로 관리 | 애플리케이션 검증과 DB 무결성 방어선을 함께 둠 |
+| 테스트와 CI | domain/service/controller/repository 계층 테스트와 GitHub Actions | 기능 변경 시 회귀를 확인할 수 있는 기반 |
 
 ---
 
-## 기술 스택
+## 3. 주요 기능
+
+### 인증/사용자
+
+- 회원가입
+- 로그인
+- JWT Access Token 발급
+- 인증된 사용자 정보 조회
+- 비밀번호 해싱
+- 이메일/닉네임 중복 검증
+
+### 임계값 Threshold
+
+- 사용자별 threshold 목록 조회
+- metric 단위 threshold 생성/수정
+- 지원 metric
+  - `HR`: 심박수
+  - `BP_SYS`: 수축기 혈압
+  - `BP_DIA`: 이완기 혈압
+- `minValue`, `maxValue` 기반 range rule
+- 사용자 1명당 metric 1개만 저장되도록 unique index 적용
+
+### 건강 기록 Health Record
+
+- 심박수 기록 생성
+- 혈압 기록 생성
+- 측정 시각 `measuredAt` 저장
+- 건강 기록 목록 조회
+- 건강 기록 상세 조회
+- 상세 응답에서 위반 내역 함께 제공
+
+### 위반 평가 Record Violation
+
+- 건강 기록 생성 시 현재 threshold 기준으로 즉시 평가
+- threshold가 없는 metric은 평가하지 않음
+- 위반 발생 시 평가 당시의 threshold 기준을 snapshot으로 저장
+- 하나의 BP 기록에서 수축기와 이완기 기준을 독립적으로 평가
+
+### 알림 Alert
+
+- 위반이 1개 이상 발생한 건강 기록에 대해 앱 내 알림 생성
+- 알림 목록 조회
+- 알림 읽음 처리
+- 알림의 `healthRecordId`를 통해 건강 기록 상세 조회 가능
+
+---
+
+## 4. API Overview
+
+| Method | Endpoint | 설명 | 인증 |
+| --- | --- | --- | --- |
+| `POST` | `/auth/register` | 회원가입 | X |
+| `POST` | `/auth/login` | 로그인 및 Access Token 발급 | X |
+| `GET` | `/user/me` | 내 정보 조회 | O |
+| `GET` | `/thresholds` | 내 threshold 목록 조회 | O |
+| `PUT` | `/thresholds/{metric}` | metric 단위 threshold 생성/수정 | O |
+| `POST` | `/health-records` | 건강 기록 생성 및 즉시 평가 | O |
+| `GET` | `/health-records` | 건강 기록 목록 조회 | O |
+| `GET` | `/health-records/{healthRecordId}` | 건강 기록 상세 및 위반 내역 조회 | O |
+| `GET` | `/alerts` | 알림 목록 조회 | O |
+| `PATCH` | `/alerts/{alertId}/read` | 알림 읽음 처리 | O |
+
+서버 실행 후 Swagger UI에서 API를 확인할 수 있습니다.
+
+```text
+http://localhost:8080/swagger-ui.html
+```
+
+---
+
+## 5. 기술 스택
 
 | 분류 | 기술 |
-|------|------|
+| --- | --- |
 | Language | Java 17 |
 | Framework | Spring Boot 3.5.x |
-| Security | Spring Security + OAuth2 Resource Server (JWT) |
+| Web | Spring MVC |
+| Security | Spring Security, OAuth2 Resource Server, JWT |
+| Persistence | Spring Data JPA |
 | Database | PostgreSQL 18 |
-| ORM | Spring Data JPA |
 | Migration | Flyway |
-| API Docs | SpringDoc OpenAPI (Swagger UI) |
-| Code Style | Spotless + Google Java Format |
-| Build | Gradle (Kotlin DSL) |
-| Container | Docker / Docker Compose |
+| API Docs | SpringDoc OpenAPI |
+| Validation/Error | Jakarta Bean Validation, Spring `ProblemDetail` |
+| Build | Gradle Kotlin DSL |
+| Format | Spotless, Google Java Format |
+| Container | Docker Compose |
+| CI | GitHub Actions |
 
 ---
 
-## API Overview
+## 6. 설계 판단
 
-| Method | Endpoint | 설명 | 인증 | 상태 |
-|--------|----------|------|------|------|
-| POST | `/auth/register` | 회원가입 | X | 완료 |
-| POST | `/auth/login` | 로그인 및 Access Token 발급 | X | 완료 |
-| GET | `/user/me` | 내 정보 조회 | O | 완료 |
-| GET | `/thresholds` | 내 threshold 목록 조회 | O | 완료 |
-| PUT | `/thresholds/{metric}` | metric 단위 threshold 생성/수정 | O | 완료 |
-| POST | `/health-records` | 건강 기록 생성 | O | 완료 |
-| GET | `/health-records` | 건강 기록 목록 조회 | O | 완료 |
-| GET | `/health-records/{healthRecordId}` | 건강 기록 상세 조회 | O | 완료 |
-| GET | `/alerts` | 알림 목록 조회 | O | 완료 |
-| PATCH | `/alerts/{alertId}/read` | 알림 읽음 처리 | O | 완료 |
+### 6.1 Threshold 변경 이력 대신 Violation Snapshot 저장
 
----
+threshold row를 직접 참조하면, 사용자가 나중에 기준을 바꿨을 때 과거 건강 기록의 평가 의미가 흔들릴 수 있습니다.
 
-## MVP 기능 범위
+그래서 `record_violation`에는 평가 당시의 `minValue`, `maxValue`를 snapshot으로 저장했습니다. 현재 MVP의 range rule에서는 이 방식이 가장 단순하면서도 과거 판단 결과를 보존할 수 있습니다.
 
-### 인증/계정
-- 회원가입, 로그인
-- JWT Access Token 발급 (만료 시간: 30분)
-- 내 정보 조회
-- 로그아웃은 클라이언트 측에서 토큰 삭제로 처리
+### 6.2 BP 기록과 BP metric의 분리
 
-### 건강 기록 생성/조회
-- 심박수(HR) 기록 입력
-- 혈압(BP) 기록 입력 (수축기 + 이완기)
-- 측정 시각(`measuredAt`) 저장
-- 건강 기록 목록 및 단건 상세 조회 (평가 결과 및 위반 내역 포함)
+혈압 기록은 하나의 입력이지만, 수축기와 이완기는 서로 다른 기준으로 평가됩니다.
 
-### 사용자 임계값 설정
-- 로그인한 사용자의 metric별 threshold를 조회하고, `PUT /thresholds/{metric}`으로 생성 또는 수정
-- 지원 지표: `HR` (심박수), `BP_SYS` (수축기 혈압), `BP_DIA` (이완기 혈압)
-- 규칙 타입: 범위 기반 (`minValue` ~ `maxValue`)
+그래서 저장 타입은 `BP`로 유지하고, 평가 단계에서 `BP_SYS`, `BP_DIA` metric으로 분리했습니다. 이 방식은 API 입력을 단순하게 유지하면서도 평가 규칙은 독립적으로 다룰 수 있습니다.
 
-### 규칙 기반 평가
-- 건강 기록 생성 시 현재 임계값 기준으로 즉시 평가
-- 위반 발생 시 `record_violation` 생성 (평가 당시 threshold snapshot 저장)
-- 건강 기록 1개에서 위반이 1개 이상 발생하면 `alert`를 최대 1개 생성
+### 6.3 ProblemDetail 기반 에러 응답
 
-### 알림
-- 앱 내 알림 목록 조회
-- 알림 읽음 처리
-- 알림의 `healthRecordId`로 건강 기록 상세로 이동 가능
+에러 응답은 별도 DTO를 만들기보다 Spring의 `ProblemDetail`을 기반으로 구성했습니다.
+
+공통 필드인 `type`, `title`, `status`, `detail`, `instance`를 사용하고, 서비스 내부 오류 식별을 위해 `errorCode`를 확장 필드로 추가했습니다. 덕분에 validation error, 인증 실패, 도메인 예외가 API 전반에서 같은 형식으로 응답됩니다.
+
+### 6.4 DB를 최종 무결성 방어선으로 사용
+
+애플리케이션 레벨 검증만으로는 동시성이나 우회 저장 상황을 완전히 막기 어렵다는 문제가 있습니다.
+
+그래서 Flyway migration에 다음 제약을 명시했습니다.
+
+- 사용자 email, nickname unique index
+- 사용자별 metric threshold unique index
+- health record 타입별 필드 조합 check constraint
+- 혈압 수축기/이완기 순서 check constraint
+- alert와 health record의 사용자 일치 FK
+- record violation metric 중복 방지 unique index
+
+### 6.5 Threshold upsert 동시성 처리
+
+사용자 1명이 같은 metric에 대해 threshold를 1개만 가져야 하므로, upsert 시 사용자 row에 pessimistic write lock을 사용하고 DB unique index를 함께 둡니다.
+
+현재 MVP에서는 “중복 row가 생기지 않는 것”을 우선했고, 중복 생성 경쟁 상황에서 더 자연스러운 재시도 응답까지는 후속 개선 대상으로 남겼습니다.
 
 ---
 
-## 핵심 설계 판단
-
-### 1. 1차 MVP 범위 축소
-
-최초 MVP에는 인증 고도화, 기록 수정/삭제, 고급 조회, 그래프, 푸시 알림같은 기능 후보가 많았습니다.
-
-하지만 1차 MVP의 목표를 “기능을 많이 제공하는 것”이 아니라, 사용자가 실제로 아래 핵심 흐름을 끝까지 수행할 수 있는 상태를 만드는 것으로 정의했습니다.
+## 7. 데이터베이스 구조
 
 ```text
-회원가입 → 로그인 → 임계값 설정 → 건강 기록 입력 → 임계값 평가 → 알림 확인
+users 1 --- N health_record
+users 1 --- N threshold
+users 1 --- N alert
+
+health_record 1 --- N record_violation
+health_record 1 --- 0..1 alert
 ```
 
-이 기준에 벗어나는 기능들은 1차 범위에서 제외했습니다.
+주요 테이블은 다음과 같습니다.
 
-인증도 같은 기준으로 단순화했습니다. 1차 MVP에서는 Refresh Token 없이 JWT Access Token만 사용하며, 토큰 만료 시 사용자가 다시 로그인하는 방식으로 처리합니다.
+| 테이블 | 역할 |
+| --- | --- |
+| `users` | 사용자 계정 정보 |
+| `threshold` | 사용자별 건강 metric 기준 |
+| `health_record` | 심박수/혈압 측정 기록 |
+| `record_violation` | 건강 기록 생성 시점의 위반 평가 결과 |
+| `alert` | 위반 기록에 대한 앱 내 알림 |
 
-이를 통해 인증, 건강 기록, 임계값 평가, 알림 생성이라는 핵심 흐름을 먼저 배포 가능한 형태로 완성하는 것을 우선했습니다.
-
----
-
-### 2. ProblemDetail 기반 에러 응답 표준화
-
-자체 `ErrorResponse` DTO를 별도로 유지하기보다 Spring의 `ProblemDetail`을 기반으로 에러 응답을 구성했습니다.
-
-HTTP 에러 응답의 공통 필드인 `type`, `title`, `status`, `detail`, `instance`를 사용하고, 서비스 도메인 오류 식별을 위해 `errorCode`를 확장 필드로 추가했습니다.
-
-이를 통해 validation error, 인증 실패, 도메인 예외를 API 전반에서 일관된 형식으로 응답하도록 했습니다.
+자세한 내용은 [docs/erd/ERD.md](docs/erd/ERD.md)
 
 ---
 
-### 3. Threshold 변경 이력 대신 Violation Snapshot 저장
-
-Threshold가 나중에 변경되더라도 과거 건강 기록의 평가 결과가 바뀌면 안 되므로, `record_violation` 테이블에 threshold의 snapshot을 저장하는 방식을 선택했습니다.
-
-따라서 `record_violation`은 threshold row를 직접 참조하지 않고, 평가 당시의 `minValue`, `maxValue`를 snapshot으로 저장합니다.
-
-1차 MVP에서는 `HR`, `BP_SYS`, `BP_DIA`에 대한 range rule만 지원하기 때문에 min/max snapshot으로 충분하다고 판단했습니다.
-
-향후 rule type이 확장되면 `record_violation` 테이블을 `rule_type`, `rule_snapshot` 컬럼 방식으로 교체하거나, 조회와 검증 요구가 커질 경우 `threshold_rule` 상위 테이블과 rule type별 detail table로 정규화하는 방식도 검토할 수 있습니다.
-
----
-
-### 4. BP 기록을 BP_SYS / BP_DIA metric으로 분리 평가
-
-혈압은 하나의 기록이지만 수축기 혈압과 이완기 혈압은 서로 다른 기준으로 평가됩니다.
-
-따라서 건강 기록 타입은 `BP`로 유지하되, 평가 시에는 `BP_SYS`, `BP_DIA` metric으로 분리했습니다.
-
-이를 통해 하나의 혈압 기록에서 수축기와 이완기 각각의 threshold 위반 여부를 독립적으로 판단할 수 있도록 했습니다.
-
----
-
-### 5. Threshold upsert의 유일성 보장
-
-사용자 1명은 metric 하나에 대해 threshold를 최대 1개만 가질 수 있도록 `user_id`, `metric` 조합에 unique index를 적용했습니다.
-
-애플리케이션 레벨에서 기존 threshold를 조회한 뒤 생성/수정하더라도, 동시에 같은 metric에 대한 생성 요청이 들어오면 중복 row가 생길 수 있습니다.
-
-따라서 DB constraint를 최종 방어선으로 두어 사용자별 metric threshold의 유일성을 보장했습니다.
-
-현재 MVP에서는 중복 row 생성을 막는 것에 집중하고, 동시 upsert 요청을 더 자연스럽게 처리하기 위한 retry 또는 DB-native upsert는 이후 개선 대상으로 둡니다.
-
----
-
-## 데이터베이스 구조
+## 8. 프로젝트 구조
 
 ```text
-users 1 ── N health_record
-users 1 ── N threshold
-users 1 ── N alert
-
-health_record 1 ── N record_violation
-health_record 1 ── 0..1 alert
-```
-
-주요 테이블: `users`, `health_record`, `threshold`, `record_violation`, `alert`
-
-> 자세한 내용은 [`docs/erd/ERD.md`](docs/erd/ERD.md) 참고.
-
----
-
-## 프로젝트 구조
-
-```
 src/main/java/io/github/jo0yo0n/vitalsjournal/
-├── alert/          # 알림 도메인
-├── auth/           # 인증/JWT 처리
-├── common/         # 공통 유틸리티, 예외 처리
-├── config/         # Spring 설정 (Security, JPA 등)
-├── healthrecord/   # 건강 기록 도메인
-├── threshold/      # 임계값 도메인
-└── user/           # 사용자 도메인
+├── alert/           # 알림 도메인
+├── auth/            # 회원가입, 로그인, JWT 발급
+├── common/          # 공통 예외와 에러 응답
+├── config/          # Security, JWT, JPA 설정
+├── healthrecord/    # 건강 기록 생성, 조회, 평가 흐름
+├── recordviolation/ # 평가 위반 내역
+├── threshold/       # 사용자별 임계값
+└── user/            # 사용자 조회
 ```
 
 ---
 
-## 로컬 실행
+## 9. 로컬 실행
 
-최초 실행 시 키 생성
+### 9.1 사전 준비
+
+- Java 17
+- Docker, Docker Compose
+
+### 9.2 환경 변수 파일 생성
+
+```bash
+cp .env.example .env
+```
+
+### 9.3 JWT RSA key 생성
+
 ```bash
 mkdir -p .local/keys
 openssl genpkey -algorithm RSA -out .local/keys/local-private.key -pkeyopt rsa_keygen_bits:2048
 openssl rsa -pubout -in .local/keys/local-private.key -out .local/keys/local-public.pub
 ```
 
+`.env.example`의 기본 key 경로는 위 명령으로 생성되는 파일을 바라봅니다.
+
+### 9.4 PostgreSQL 실행
+
 ```bash
-cp .env.example .env  # .env 파일 생성 후, 필요한 경우 값 수정 (예: DB 접속 정보)
 docker compose up -d
+```
+
+### 9.5 애플리케이션 실행
+
+```bash
 ./gradlew bootRun
 ```
 
 ---
 
-## 테스트
-### 테스트 실행
-```bash
-# 테스트 실행
-./gradlew test
+## 10. 테스트와 검증
 
-# 테스트 + 코드 스타일/정적 검사
+JPA 테스트는 실제 PostgreSQL 연결을 사용하므로, 테스트 전에 `docker compose up -d`로 DB를 실행해야 합니다.
+
+```bash
+./gradlew test
+```
+
+전체 검증은 다음 명령으로 실행합니다.
+
+```bash
 ./gradlew check
 ```
 
-### 테스트 전략
-- Domain test: 도메인 객체의 불변식과 상태 변경 검증
-- Service test: 비즈니스 규칙과 예외 흐름 검증
-- Controller test: 요청 validation, 인증/인가, 응답 status/body 검증
-- Repository test: DB 제약 조건과 조회 동작 검증
+`check`에는 테스트와 Spotless 포맷 검사가 포함됩니다. GitHub Actions에서도 PR 기준으로 같은 검증을 실행합니다.
 
-### 현재 테스트 범위
+### 테스트 구성
 
-| 영역 | 테스트 내용 |
-|------|-------------|
-| Auth | 회원가입, 로그인, JWT 발급, 인증 실패 응답 |
-| User | 인증된 사용자 조회, 사용자 없음, 잘못된 JWT subject 처리 |
-| Threshold | threshold 생성/수정, 목록 조회, range 검증 |
-| Common Error | Problem Details 기반 예외 응답, validation error mapping |
+| 테스트 유형 | 검증 대상 |
+| --- | --- |
+| Domain test | 도메인 생성 규칙, 불변식, 잘못된 값 예외 |
+| Service test | 비즈니스 흐름, threshold 평가, alert 생성, 예외 흐름 |
+| Controller test | 요청 validation, 인증 principal 처리, status/body |
+| Repository test | DB unique/check constraint, 정렬 조회, update query |
+| Common error test | `ProblemDetail` 응답 형식, validation error mapping |
 
 ---
 
-## Docs
+## 11. 관련 문서
 
 | 문서 | 경로 |
-|------|------|
-| MVP 기획 | [`docs/mvp/MVP.md`](docs/mvp/MVP.md) |
-| ERD | [`docs/erd/ERD.md`](docs/erd/ERD.md) |
-| OpenAPI (Swagger UI) | `http://localhost:8080/swagger-ui.html` (서버 실행 후) |
-
----
-
-## 향후 계획
-1. 백엔드 배포
-2. 최소 프론트엔드 연동
+| --- | --- |
+| MVP 범위 | [docs/mvp/MVP.md](docs/mvp/MVP.md) |
+| ERD | [docs/erd/ERD.md](docs/erd/ERD.md) |
+| OpenAPI 문서 | [docs/api/api-document.yaml](docs/api/api-document.yaml) |
+| Git 작업 규칙 | [docs/collaboration/GIT_WORKFLOW.md](docs/collaboration/GIT_WORKFLOW.md) |
